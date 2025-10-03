@@ -64,8 +64,14 @@ const PostCard = memo(function PostCard({
   const [isReposting, setIsReposting] = useState(false)
   const repostMenuRef = useRef<HTMLDivElement>(null)
   const isOwner = user?.id === post.user_id
-  // 判断是否可以转发（不能转发自己的帖子）
-  const canRepost = user && !isOwner
+
+  // 获取原帖的作者 ID（如果是转发，取原帖作者；否则取当前帖子作者）
+  const originalAuthorId = post.is_repost && post.original_post
+    ? post.original_post.user_id
+    : post.user_id
+
+  // 判断是否可以转发（不能转发自己原创的帖子，但可以取消已转发的帖子）
+  const canRepost = user && (hasReposted || user.id !== originalAuthorId)
 
   // 点击外部关闭转发菜单
   useEffect(() => {
@@ -663,8 +669,9 @@ const PostCard = memo(function PostCard({
             }`}
             title={
               !user ? '请先登录' :
-              isOwner ? '不能转发自己的动态' :
-              hasReposted ? '取消转发' : '转发'
+              hasReposted ? '取消转发' :
+              user.id === originalAuthorId ? '不能转发自己的动态' :
+              '转发'
             }
           >
             <Repeat2
