@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { getSupabaseClient } from '@/lib/supabase-api'
 
 // GET - 获取粉丝列表
 export async function GET(
@@ -13,7 +13,7 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = (page - 1) * limit
 
-    const supabase = createClient()
+    const supabase = getSupabaseClient()
 
     // 查找目标用户
     const { data: targetUser, error: userError } = await supabase
