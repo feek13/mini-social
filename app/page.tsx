@@ -17,7 +17,7 @@ export default function Home() {
   const [error, setError] = useState('')
 
   // 获取用户点赞的动态列表
-  const fetchUserLikes = useCallback(async () => {
+  const fetchUserLikes = useCallback(async (): Promise<Set<string>> => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
@@ -38,7 +38,7 @@ export default function Home() {
       }
 
       const data = await response.json()
-      return new Set(data.likedPostIds || [])
+      return new Set<string>(data.likedPostIds || [])
     } catch (err) {
       console.error('获取点赞列表错误:', err)
       return new Set<string>()
