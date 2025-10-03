@@ -17,19 +17,28 @@ export default function Home() {
   const [error, setError] = useState('')
 
   // 获取用户点赞的动态列表
-  const fetchUserLikes = useCallback(async (userId: string) => {
+  const fetchUserLikes = useCallback(async () => {
     try {
-      const { data: likes, error } = await supabase
-        .from('likes')
-        .select('post_id')
-        .eq('user_id', userId)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-      if (error) {
-        console.error('获取点赞列表错误:', error)
+      if (sessionError || !session?.access_token) {
+        console.log('无有效 session，跳过获取点赞列表')
         return new Set<string>()
       }
 
-      return new Set(likes?.map((like) => like.post_id) || [])
+      const response = await fetch('/api/users/likes', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (!response.ok) {
+        console.error('获取点赞列表失败:', response.status)
+        return new Set<string>()
+      }
+
+      const data = await response.json()
+      return new Set(data.likedPostIds || [])
     } catch (err) {
       console.error('获取点赞列表错误:', err)
       return new Set<string>()
@@ -73,37 +82,25 @@ export default function Home() {
       }
 
       setPosts(data.posts || [])
-
-      // 如果用户已登录，获取点赞和转发状态
-      if (user?.id) {
-        const [likedIds, repostedIds] = await Promise.all([
-          fetchUserLikes(user.id),
-          fetchUserReposts(user.id)
-        ])
-        setLikedPostIds(likedIds)
-        setRepostedPostIds(repostedIds)
-      } else {
-        setLikedPostIds(new Set())
-        setRepostedPostIds(new Set())
-      }
     } catch (err) {
       console.error('获取动态错误:', err)
       setError('获取动态失败，请刷新重试')
     } finally {
       setLoading(false)
     }
-  }, [user?.id, fetchUserLikes, fetchUserReposts])
+  }, [])
 
-  // 初始加载 - 只在 user.id 变化时重新加载
+  // 初始加载 - 只在组件挂载时执行一次
   useEffect(() => {
     fetchPosts()
-  }, []) // 只在组件挂载时加载一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 当用户登录状态改变时，重新获取点赞和转发状态
   useEffect(() => {
-    if (user?.id && posts.length > 0) {
+    if (user?.id) {
       Promise.all([
-        fetchUserLikes(user.id),
+        fetchUserLikes(),
         fetchUserReposts(user.id)
       ]).then(([likedIds, repostedIds]) => {
         setLikedPostIds(likedIds)
@@ -113,7 +110,8 @@ export default function Home() {
       setLikedPostIds(new Set())
       setRepostedPostIds(new Set())
     }
-  }, [user?.id, fetchUserLikes, fetchUserReposts, posts.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   // 发布新动态
   const handlePostSubmit = async (content: string, imageUrls?: string[]) => {
@@ -198,14 +196,20 @@ export default function Home() {
       })
     )
 
-    // 立即刷新转发状态和动态列表
+    // 刷新转发状态和点赞状态
     if (user?.id) {
-      // 并行更新转发状态和重新获取动态列表
-      await Promise.all([
-        fetchUserReposts(user.id).then(setRepostedPostIds),
-        fetchPosts() // 刷新动态列表以显示新的转发
+      const [repostedIds, likedIds] = await Promise.all([
+        fetchUserReposts(user.id),
+        fetchUserLikes()
       ])
+      setRepostedPostIds(repostedIds)
+      setLikedPostIds(likedIds)
     }
+
+    // 延迟刷新动态列表以显示新的转发
+    setTimeout(() => {
+      fetchPosts()
+    }, 500)
   }
 
   // 点赞或取消点赞
@@ -243,19 +247,30 @@ export default function Home() {
 
     try {
       // 获取 access token
-      const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+      if (sessionError || !session?.access_token) {
+        console.error('Session 错误:', sessionError)
+        throw new Error('登录已过期，请重新登录')
+      }
+
+      const accessToken = session.access_token
 
       const response = await fetch(`/api/posts/${postId}/like`, {
         method: 'POST',
         headers: {
-          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+          'Authorization': `Bearer ${accessToken}`,
         },
       })
 
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('点赞 API 错误:', {
+          status: response.status,
+          error: data.error
+        })
+
         // 如果失败，恢复状态
         setLikedPostIds((prev) => {
           const newSet = new Set(prev)
@@ -283,7 +298,17 @@ export default function Home() {
         throw new Error(data.error || '操作失败')
       }
 
-      // 使用服务器返回的准确点赞数更新
+      // 使用服务器返回的准确点赞数和状态更新
+      setLikedPostIds((prev) => {
+        const newSet = new Set(prev)
+        if (data.isLiked) {
+          newSet.add(postId)
+        } else {
+          newSet.delete(postId)
+        }
+        return newSet
+      })
+
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post.id === postId
@@ -293,6 +318,7 @@ export default function Home() {
       )
     } catch (err) {
       console.error('点赞操作错误:', err)
+      // 错误已经在上面处理了，这里只是记录
     }
   }
 
