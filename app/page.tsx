@@ -15,6 +15,7 @@ export default function Home() {
   const [repostedPostIds, setRepostedPostIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [likingPostId, setLikingPostId] = useState<string | null>(null)
 
   // 获取用户点赞的动态列表
   const fetchUserLikes = useCallback(async (): Promise<Set<string>> => {
@@ -219,6 +220,12 @@ export default function Home() {
       return
     }
 
+    // 防止并发请求
+    if (likingPostId === postId) {
+      return
+    }
+
+    setLikingPostId(postId)
     const isLiked = likedPostIds.has(postId)
 
     // 乐观更新：立即更新 UI
@@ -319,6 +326,8 @@ export default function Home() {
     } catch (err) {
       console.error('点赞操作错误:', err)
       // 错误已经在上面处理了，这里只是记录
+    } finally {
+      setLikingPostId(null)
     }
   }
 
