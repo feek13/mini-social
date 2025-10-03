@@ -48,6 +48,7 @@ const PostCard = memo(function PostCard({
   const { user, profile } = useAuth()
   const [isDeleting, setIsDeleting] = useState(false)
   const [likeAnimating, setLikeAnimating] = useState(false)
+  const [commentAnimating, setCommentAnimating] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount)
@@ -104,7 +105,7 @@ const PostCard = memo(function PostCard({
     if (!user) return
 
     setLikeAnimating(true)
-    setTimeout(() => setLikeAnimating(false), 300)
+    setTimeout(() => setLikeAnimating(false), 600)
 
     if (isLiked && onUnlike) {
       onUnlike(post.id)
@@ -135,6 +136,10 @@ const PostCard = memo(function PostCard({
   const handleToggleComments = () => {
     const newShowComments = !showComments
     setShowComments(newShowComments)
+
+    // 添加评论按钮动画
+    setCommentAnimating(true)
+    setTimeout(() => setCommentAnimating(false), 400)
 
     if (newShowComments && comments.length === 0) {
       loadComments()
@@ -617,6 +622,18 @@ const PostCard = memo(function PostCard({
         </div>
       )}
 
+      {/* 未登录提示 */}
+      {!user && (
+        <div className="mb-3 ml-0 sm:ml-[52px] px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            <a href="/login" className="font-semibold hover:underline">登录</a>
+            {' '}或{' '}
+            <a href="/signup" className="font-semibold hover:underline">注册</a>
+            {' '}后即可点赞、评论和转发
+          </p>
+        </div>
+      )}
+
       {/* 底部：互动按钮 */}
       <div className="flex items-center space-x-4 sm:space-x-8 pt-3 border-t border-gray-100 ml-0 sm:ml-[52px]">
         {/* 点赞按钮 */}
@@ -627,15 +644,13 @@ const PostCard = memo(function PostCard({
             isLiked
               ? 'text-red-500'
               : 'text-gray-500 hover:text-red-500'
-          } ${!user ? 'cursor-not-allowed opacity-50' : 'active:scale-95'} ${
-            likeAnimating ? 'animate-heartbeat' : ''
-          }`}
+          } ${!user ? 'cursor-not-allowed opacity-50' : 'active:scale-95'}`}
           title={user ? (isLiked ? '取消点赞' : '点赞') : '请先登录'}
         >
           <Heart
             className={`w-5 h-5 transition-all ${
               isLiked ? 'fill-current scale-110' : 'group-hover:scale-110 group-hover:fill-current group-hover:fill-opacity-20'
-            }`}
+            } ${likeAnimating ? 'animate-like-burst' : ''}`}
           />
           <span className="text-sm font-medium tabular-nums transition-smooth">
             {post.likes_count || 0}
@@ -651,7 +666,7 @@ const PostCard = memo(function PostCard({
           } ${!user ? 'cursor-not-allowed opacity-50' : 'active:scale-95'}`}
           title={user ? '评论' : '请先登录'}
         >
-          <MessageCircle className={`w-5 h-5 transition-transform ${showComments ? 'fill-current' : 'group-hover:scale-110'}`} />
+          <MessageCircle className={`w-5 h-5 transition-transform ${showComments ? 'fill-current' : 'group-hover:scale-110'} ${commentAnimating ? 'animate-comment-bounce' : ''}`} />
           <span className="text-sm font-medium tabular-nums">{commentsCount}</span>
         </button>
 
@@ -664,9 +679,7 @@ const PostCard = memo(function PostCard({
               hasReposted
                 ? 'text-green-500'
                 : 'text-gray-500 hover:text-green-500'
-            } ${!canRepost || isReposting ? 'cursor-not-allowed opacity-50' : 'active:scale-95'} ${
-              repostAnimating ? 'animate-spin' : ''
-            }`}
+            } ${!canRepost || isReposting ? 'cursor-not-allowed opacity-50' : 'active:scale-95'}`}
             title={
               !user ? '请先登录' :
               hasReposted ? '取消转发' :
@@ -677,7 +690,7 @@ const PostCard = memo(function PostCard({
             <Repeat2
               className={`w-5 h-5 transition-all ${
                 hasReposted ? 'scale-110' : 'group-hover:scale-110'
-              }`}
+              } ${repostAnimating ? 'animate-repost-spin' : ''}`}
             />
             <span className="text-sm font-medium tabular-nums transition-smooth">
               {post.repost_count || 0}
@@ -686,14 +699,14 @@ const PostCard = memo(function PostCard({
 
           {/* 转发成功提示 */}
           {repostSuccess && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-full shadow-lg z-50 animate-fade-in whitespace-nowrap">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-full shadow-lg z-50 animate-slide-up whitespace-nowrap">
               转发成功 ✓
             </div>
           )}
 
           {/* 转发错误提示 */}
           {repostError && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-full shadow-lg z-50 animate-fade-in whitespace-nowrap">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-full shadow-lg z-50 animate-slide-up whitespace-nowrap">
               {repostError}
             </div>
           )}

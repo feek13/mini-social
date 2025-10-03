@@ -304,6 +304,32 @@ export default function Home() {
 
       {/* 主内容 */}
       <main className="max-w-2xl mx-auto px-4 py-6">
+        {/* 未登录横幅 */}
+        {!user && (
+          <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold mb-2">欢迎来到 Mini Social</h2>
+                <p className="text-blue-50 text-sm">登录后即可发布动态、点赞评论，与好友互动</p>
+              </div>
+              <div className="flex space-x-3 ml-4">
+                <a
+                  href="/signup"
+                  className="px-5 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors text-sm whitespace-nowrap"
+                >
+                  注册
+                </a>
+                <a
+                  href="/login"
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors border-2 border-white text-sm whitespace-nowrap"
+                >
+                  登录
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 发布框（仅登录用户可见） */}
         {user && (
           <div className="mb-6">
@@ -438,28 +464,29 @@ export default function Home() {
         ) : (
           // 动态列表
           <div className="space-y-4">
-            {posts.map((post) => {
+            {posts.map((post, index) => {
               // 对于转发动态，检查原动态ID是否已转发
               const postIdToCheck = post.is_repost && post.original_post_id
                 ? post.original_post_id
                 : post.id
 
               return (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onLike={handleToggleLike}
-                  onUnlike={handleToggleLike}
-                  onDelete={handlePostDelete}
-                  onRepost={handleRepost}
-                  isLiked={likedPostIds.has(post.id)}
-                  hasReposted={repostedPostIds.has(postIdToCheck)}
-                  commentsCount={
-                    post.is_repost && post.original_post
-                      ? post.original_post.comments_count || 0
-                      : post.comments_count || 0
-                  }
-                />
+                <div key={post.id} className={index < 10 ? 'stagger-fade-in' : 'animate-fade-in-up'}>
+                  <PostCard
+                    post={post}
+                    onLike={handleToggleLike}
+                    onUnlike={handleToggleLike}
+                    onDelete={handlePostDelete}
+                    onRepost={handleRepost}
+                    isLiked={likedPostIds.has(post.id)}
+                    hasReposted={repostedPostIds.has(postIdToCheck)}
+                    commentsCount={
+                      post.is_repost && post.original_post
+                        ? post.original_post.comments_count || 0
+                        : post.comments_count || 0
+                    }
+                  />
+                </div>
               )
             })}
           </div>
