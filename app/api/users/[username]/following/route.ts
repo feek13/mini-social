@@ -67,10 +67,10 @@ export async function GET(
     }
 
     // 提取关注信息和通知状态
-    const following = follows?.map((f: any) => f.following).filter(Boolean) || []
+    const following = follows?.map((f) => f.following).filter(Boolean) || []
     const notifyStatuses: { [userId: string]: boolean } = {}
 
-    follows?.forEach((f: any) => {
+    follows?.forEach((f) => {
       if (f.following) {
         notifyStatuses[f.following.id] = f.notify_on_post
       }

@@ -66,7 +66,7 @@ export async function GET(
     }
 
     // 提取粉丝信息
-    const followers = follows?.map((f: any) => f.follower).filter(Boolean) || []
+    const followers = follows?.map((f) => f.follower).filter(Boolean) || []
 
     return NextResponse.json({
       followers,
