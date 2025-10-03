@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import Avatar from '@/components/Avatar'
+import { Profile } from '@/types/database'
 
 interface CommentInputProps {
   onSubmit: (content: string) => Promise<void>
@@ -72,7 +73,7 @@ export default function CommentInput({
         const data = await response.json()
 
         if (response.ok && data.users) {
-          const userSuggestions: Suggestion[] = data.users.map((user: any) => ({
+          const userSuggestions: Suggestion[] = data.users.map((user: Profile) => ({
             type: 'user' as const,
             value: user.username,
             display: user.username,

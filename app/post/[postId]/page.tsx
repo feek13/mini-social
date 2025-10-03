@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import PostDetailClient from './PostDetailClient'
+import { Comment } from '@/types/database'
 
 // 生成动态 metadata
 export async function generateMetadata({
@@ -94,7 +95,7 @@ export default async function PostDetailPage({
     if (commentsResponse.ok) {
       const commentsData = await commentsResponse.json()
       // 只保留一级评论（parent_comment_id 为 null）
-      comments = (commentsData.comments || []).filter((comment: any) => !comment.parent_comment_id)
+      comments = (commentsData.comments || []).filter((comment: Comment) => !comment.parent_comment_id)
     }
   } catch (error) {
     console.error('获取动态详情失败:', error)
