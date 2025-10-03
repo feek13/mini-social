@@ -98,7 +98,7 @@ export default async function CommentDetailPage({
     replies = commentData.replies || []
 
     // 验证评论属于该动态
-    if (comment.post_id !== postId) {
+    if (!comment || comment.post_id !== postId) {
       notFound()
     }
   } catch (error) {
