@@ -64,6 +64,8 @@ const PostCard = memo(function PostCard({
   const [isReposting, setIsReposting] = useState(false)
   const repostMenuRef = useRef<HTMLDivElement>(null)
   const isOwner = user?.id === post.user_id
+  // 判断是否可以转发（不能转发自己的帖子）
+  const canRepost = user && !isOwner
 
   // 点击外部关闭转发菜单
   useEffect(() => {
@@ -651,15 +653,19 @@ const PostCard = memo(function PostCard({
         <div className="relative" ref={repostMenuRef}>
           <button
             onClick={handleRepostClick}
-            disabled={!user || isReposting}
+            disabled={!canRepost || isReposting}
             className={`flex items-center space-x-2 transition-all group ${
               hasReposted
                 ? 'text-green-500'
                 : 'text-gray-500 hover:text-green-500'
-            } ${!user || isReposting ? 'cursor-not-allowed opacity-50' : 'active:scale-95'} ${
+            } ${!canRepost || isReposting ? 'cursor-not-allowed opacity-50' : 'active:scale-95'} ${
               repostAnimating ? 'animate-spin' : ''
             }`}
-            title={user ? (hasReposted ? '取消转发' : '转发') : '请先登录'}
+            title={
+              !user ? '请先登录' :
+              isOwner ? '不能转发自己的动态' :
+              hasReposted ? '取消转发' : '转发'
+            }
           >
             <Repeat2
               className={`w-5 h-5 transition-all ${

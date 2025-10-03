@@ -74,6 +74,14 @@ export async function POST(
       )
     }
 
+    // 不能转发自己的动态
+    if (originalPost.user_id === user.id) {
+      return NextResponse.json(
+        { error: '不能转发自己的动态' },
+        { status: 400 }
+      )
+    }
+
     // 检查是否已经转发过
     const { data: existingRepost, error: checkError } = await supabase
       .from('posts')
