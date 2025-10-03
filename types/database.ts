@@ -28,18 +28,24 @@ export type Post = {
   created_at: string
   user?: Profile
   original_post?: Post // 原动态信息（嵌套）
+  hashtags?: Hashtag[]       // 关联的话题标签
+  mentions?: Mention[]       // 提及的用户
 }
 
 export type Comment = {
   id: string
   post_id: string
   user_id: string
+  parent_comment_id?: string  // 父评论ID
   content: string
+  reply_count: number          // 回复数量
+  depth: number                // 层级深度
   created_at: string
   user?: Profile
+  replies?: Comment[]          // 子评论（可选加载）
 }
 
-export type NotificationType = 'like' | 'comment' | 'repost' | 'follow' | 'new_post'
+export type NotificationType = 'like' | 'comment' | 'repost' | 'follow' | 'new_post' | 'mention'
 
 export type Notification = {
   id: string
@@ -76,4 +82,32 @@ export type UserStats = {
   followersCount: number   // 粉丝数
   followingCount: number   // 关注数
   memberDays: number
+}
+
+// 话题标签类型
+export type Hashtag = {
+  id: string
+  name: string              // 标签名（不含#）
+  usage_count: number       // 使用次数
+  created_at: string
+}
+
+// 动态-标签关联
+export type PostHashtag = {
+  post_id: string
+  hashtag_id: string
+  created_at: string
+  hashtag?: Hashtag
+}
+
+// 提及类型
+export type Mention = {
+  id: string
+  post_id?: string
+  comment_id?: string
+  mentioned_user_id: string
+  mentioner_user_id: string
+  created_at: string
+  mentioned_user?: Profile
+  mentioner_user?: Profile
 }
