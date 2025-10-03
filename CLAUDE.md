@@ -1,0 +1,342 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+MiniSocial 是一个类似 Twitter 的迷你社交平台，使用 Next.js 15 和 Supabase 构建。支持用户注册登录、发布动态、点赞评论、关注用户、通知系统等完整的社交功能。
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Database & Auth**: Supabase (PostgreSQL)
+- **Icons**: lucide-react
+- **State Management**: React Context (AuthProvider)
+
+## Commands
+
+```bash
+npm run dev          # 启动开发服务器 (http://localhost:3000, 使用 Turbopack)
+npm run build        # 构建生产版本
+npm run start        # 启动生产服务器
+npm run lint         # 运行 ESLint 检查
+```
+
+## Environment Variables
+
+必需的环境变量（在 `.env.local` 中配置）：
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+可选环境变量（用于服务端 API，可绕过 RLS）：
+```env
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+## Architecture Overview
+
+### Client-Side vs Server-Side Supabase
+
+项目使用两种 Supabase 客户端模式：
+
+1. **客户端** (`lib/supabase.ts`):
+   - 单例模式，用于浏览器端组件
+   - 启用 `persistSession` 和 `autoRefreshToken`
+   - 自动处理认证状态
+
+2. **服务端** (`lib/supabase-api.ts`):
+   - `getSupabaseClient()`: 用于公开数据访问（匿名）
+   - `getSupabaseClientWithAuth(token)`: 用于需要认证的 API 路由
+   - 禁用 session 持久化，适合服务器环境
+
+### Authentication Flow
+
+1. **AuthProvider** (`app/providers/AuthProvider.tsx`):
+   - 使用 React Context 提供全局认证状态
+   - 管理 `user`（Supabase User 对象）和 `profile`（用户资料）
+   - 超时保护机制（3秒），失败时使用 fallback username
+   - 监听认证状态变化 (`onAuthStateChange`)
+
+2. **使用方式**:
+   ```tsx
+   const { user, profile, loading, signOut } = useAuth()
+   ```
+
+### API Route Patterns
+
+所有 API 路由遵循统一模式：
+
+1. **认证验证**:
+   ```ts
+   const authHeader = request.headers.get('authorization')
+   const accessToken = authHeader.replace('Bearer ', '')
+   const supabase = getSupabaseClientWithAuth(accessToken)
+   const { data: { user }, error } = await supabase.auth.getUser(accessToken)
+   ```
+
+2. **错误处理**:
+   - 返回标准格式：`{ error: string }` + HTTP 状态码
+   - 常见状态码：401 (未认证)、404 (未找到)、400 (请求错误)、500 (服务器错误)
+
+3. **客户端调用示例**:
+   ```ts
+   const { data: { session } } = await supabase.auth.getSession()
+   const response = await fetch('/api/...', {
+     headers: {
+       'Authorization': `Bearer ${session?.access_token}`,
+     },
+   })
+   ```
+
+### Database Schema
+
+核心表结构：
+
+- **profiles**: 用户资料（id, username, avatar_url, avatar_template, bio, location）
+- **posts**: 动态（支持普通发文和转发，is_repost 字段）
+- **likes**: 点赞记录（通过触发器自动更新 posts.likes_count）
+- **comments**: 评论（通过触发器自动更新 posts.comments_count）
+- **follows**: 关注关系（包含 notify_on_post 字段用于特别关注）
+- **notifications**: 通知（类型：like, comment, repost, follow, new_post）
+
+### Database Triggers
+
+数据库使用多个触发器自动维护数据一致性：
+
+1. **点赞计数**: 自动更新 `posts.likes_count`
+2. **评论计数**: 自动更新 `posts.comments_count`
+3. **热度分数**: 自动计算和更新 `posts.hot_score`
+4. **通知创建**: 点赞、评论、转发、关注时自动创建通知
+5. **发文通知**: 用户发文时自动通知开启特别关注的粉丝
+
+### Row Level Security (RLS)
+
+所有表启用 RLS，策略示例：
+
+- **profiles**: 所有人可读，用户只能更新自己的资料
+- **posts**: 所有人可读，用户只能删除自己的动态
+- **likes/comments**: 所有人可读，用户只能操作自己的记录
+- **follows**: 所有人可读，用户只能管理自己的关注关系
+- **notifications**: 用户只能查看自己的通知
+
+## Key Features & Implementation
+
+### 1. 动态发布与转发
+
+- **发文**: `POST /api/posts` - 280 字符限制，支持图片（未来功能）
+- **转发**: `POST /api/posts/[id]/repost` - 可添加转发评论
+- **删除**: `DELETE /api/posts/[id]` - 仅作者可删除
+
+转发数据结构：
+```ts
+{
+  is_repost: true,
+  original_post_id: string,
+  repost_comment?: string
+}
+```
+
+### 2. 点赞系统
+
+- 使用乐观更新：UI 立即响应，后台同步
+- 防止重复点赞：数据库约束 `UNIQUE(post_id, user_id)`
+- 自动计数：触发器维护 `likes_count`
+
+### 3. 关注与特别关注
+
+- **关注**: `POST /api/users/[username]/follow`
+- **取关**: `DELETE /api/users/[username]/follow`
+- **通知开关**: `PATCH /api/users/[username]/notify` - 切换 `notify_on_post`
+- **关注状态**: `GET /api/users/[username]/follow`
+
+特别关注功能：
+- `follows.notify_on_post` 字段控制是否接收发文通知
+- 用户发文时触发器自动通知开启特别关注的粉丝
+
+### 4. 通知系统
+
+通知类型：
+- `like`: 点赞通知
+- `comment`: 评论通知
+- `repost`: 转发通知
+- `follow`: 关注通知
+- `new_post`: 发文通知（特别关注）
+
+API 端点：
+- `GET /api/notifications` - 获取通知列表（支持分页和类型筛选）
+- `GET /api/notifications/unread-count` - 获取未读数量
+- `PATCH /api/notifications/[id]/read` - 标记单条已读
+- `PATCH /api/notifications/mark-all-read` - 标记全部已读
+
+### 5. 搜索功能
+
+- `GET /api/search?q={query}&type={posts|users|all}` - 全文搜索
+- `GET /api/search/suggestions?q={query}` - 搜索建议（用户名）
+- 使用 PostgreSQL `ILIKE` 进行模糊匹配
+
+### 6. 热门动态
+
+- `GET /api/posts/trending` - 基于 `hot_score` 排序
+- 热度分数 = 点赞数 × 2 + 评论数 × 3 + 转发数 × 4 - 时间衰减
+- 触发器自动更新，无需手动计算
+
+## Component Patterns
+
+### 1. 客户端组件标记
+
+所有需要状态、事件处理或使用 hooks 的组件必须添加 `'use client'`：
+
+```tsx
+'use client'
+
+import { useState } from 'react'
+// ...
+```
+
+### 2. 乐观更新模式
+
+点赞、关注等操作使用乐观更新提升用户体验：
+
+```tsx
+// 1. 立即更新 UI
+setIsLiked(true)
+setLikesCount(prev => prev + 1)
+
+// 2. 发送请求
+const response = await fetch('/api/posts/[id]/like', { method: 'POST' })
+
+// 3. 失败时回滚
+if (!response.ok) {
+  setIsLiked(false)
+  setLikesCount(prev => prev - 1)
+}
+```
+
+### 3. 加载状态
+
+使用骨架屏而非 spinner 提升感知性能：
+
+```tsx
+{loading ? (
+  <div className="animate-pulse">
+    <div className="h-8 bg-gray-200 rounded"></div>
+  </div>
+) : (
+  <ActualContent />
+)}
+```
+
+### 4. 头像系统
+
+使用 DiceBear API 生成渐变头像：
+
+```tsx
+<Avatar
+  username={user.username}
+  avatarUrl={user.avatar_url}
+  avatarTemplate={user.avatar_template || 'micah'}
+  size="md"
+/>
+```
+
+模版选项：`micah`, `adventurer`, `avataaars`, `bottts`, `identicon` 等
+
+## Type Safety
+
+### Database Types
+
+所有数据库类型定义在 `types/database.ts`：
+
+```ts
+export type Profile = { id: string; username: string; ... }
+export type Post = { id: string; content: string; ... }
+export type Comment = { ... }
+export type Notification = { ... }
+export type Follow = { ... }
+```
+
+### API Response Types
+
+API 返回类型应与数据库类型一致，使用 TypeScript 严格模式确保类型安全。
+
+## Common Patterns
+
+### 获取当前用户
+
+```tsx
+const { user, profile } = useAuth()
+
+if (!user) {
+  return <LoginPrompt />
+}
+```
+
+### 页面参数处理
+
+```tsx
+export default async function Page({
+  params
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  // ...
+}
+```
+
+### 错误处理
+
+```tsx
+try {
+  const response = await fetch('/api/...')
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result.error || '操作失败')
+  }
+
+  // 成功处理
+} catch (error) {
+  console.error('错误:', error)
+  alert(error instanceof Error ? error.message : '未知错误')
+}
+```
+
+## Database Setup
+
+首次部署需要在 Supabase SQL Editor 运行 `supabase-setup.sql`：
+
+1. 创建所有表结构
+2. 设置 RLS 策略
+3. 创建触发器和函数
+4. 创建索引优化查询
+
+## Performance Optimizations
+
+1. **数据库索引**: 为常用查询字段创建索引（username, created_at 等）
+2. **懒加载**: 动态列表使用分页加载
+3. **缓存策略**: Next.js 自动缓存 API 路由
+4. **乐观更新**: 减少等待时间，提升用户体验
+5. **Turbopack**: 开发环境使用 Turbopack 提升构建速度
+
+## Common Gotchas
+
+1. **API 路由参数**: Next.js 15 中 `params` 是 Promise，需要 `await`
+2. **Supabase 客户端**: 客户端和服务端使用不同的初始化方式
+3. **RLS 策略**: 确保所有表都正确配置了 RLS，否则数据可能泄露
+4. **触发器依赖**: 修改表结构前检查相关触发器
+5. **环境变量**: 以 `NEXT_PUBLIC_` 开头的变量会暴露到客户端
+
+## Deployment Notes
+
+部署到 Vercel 时：
+
+1. 设置环境变量（至少需要 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY`）
+2. 在 Supabase 认证设置中添加 Vercel 域名到允许的重定向 URL
+3. 确保数据库已运行 `supabase-setup.sql`
+4. 首次部署后检查 API 路由是否正常工作

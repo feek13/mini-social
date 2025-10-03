@@ -1,0 +1,835 @@
+'use client'
+
+import { useState, memo, useRef, useEffect } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { Heart, MessageCircle, Trash2, Send, Repeat2, MessageSquareQuote } from 'lucide-react'
+import { useAuth } from '@/app/providers/AuthProvider'
+import { Post } from '@/types/database'
+import Avatar from '@/components/Avatar'
+import ImageViewer from '@/components/ImageViewer'
+import RepostDialog from '@/components/RepostDialog'
+import { formatRelativeTime } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
+
+interface Comment {
+  id: string
+  content: string
+  created_at: string
+  user_id: string
+  user?: {
+    username: string
+    avatar_url?: string
+    avatar_template?: string
+  }
+}
+
+interface PostCardProps {
+  post: Post
+  onLike?: (postId: string) => void
+  onUnlike?: (postId: string) => void
+  onDelete?: (postId: string) => void
+  onRepost?: (postId: string, newRepostCount: number) => void
+  isLiked?: boolean
+  hasReposted?: boolean
+  commentsCount?: number
+}
+
+const PostCard = memo(function PostCard({
+  post,
+  onLike,
+  onUnlike,
+  onDelete,
+  onRepost,
+  isLiked = false,
+  hasReposted = false,
+  commentsCount: initialCommentsCount = 0,
+}: PostCardProps) {
+  const { user, profile } = useAuth()
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [likeAnimating, setLikeAnimating] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [commentsCount, setCommentsCount] = useState(initialCommentsCount)
+  const [commentContent, setCommentContent] = useState('')
+  const [loadingComments, setLoadingComments] = useState(false)
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [showImageViewer, setShowImageViewer] = useState(false)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [showRepostDialog, setShowRepostDialog] = useState(false)
+  const [repostAnimating, setRepostAnimating] = useState(false)
+  const [showRepostMenu, setShowRepostMenu] = useState(false)
+  const [repostSuccess, setRepostSuccess] = useState(false)
+  const [repostError, setRepostError] = useState('')
+  const [isReposting, setIsReposting] = useState(false)
+  const repostMenuRef = useRef<HTMLDivElement>(null)
+  const isOwner = user?.id === post.user_id
+
+  // 点击外部关闭转发菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (repostMenuRef.current && !repostMenuRef.current.contains(event.target as Node)) {
+        setShowRepostMenu(false)
+      }
+    }
+
+    if (showRepostMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showRepostMenu])
+
+  const handleDelete = async () => {
+    if (!onDelete || !confirm('确定要删除这条动态吗？')) return
+
+    setIsDeleting(true)
+    try {
+      await onDelete(post.id)
+    } catch (error) {
+      console.error('删除失败:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleLike = () => {
+    if (!user) return
+
+    setLikeAnimating(true)
+    setTimeout(() => setLikeAnimating(false), 300)
+
+    if (isLiked && onUnlike) {
+      onUnlike(post.id)
+    } else if (onLike) {
+      onLike(post.id)
+    }
+  }
+
+  // 加载评论
+  const loadComments = async () => {
+    setLoadingComments(true)
+    try {
+      const response = await fetch(`/api/posts/${post.id}/comments`)
+      const data = await response.json()
+
+      if (response.ok) {
+        setComments(data.comments || [])
+        setCommentsCount(data.comments?.length || 0)
+      }
+    } catch (error) {
+      console.error('加载评论失败:', error)
+    } finally {
+      setLoadingComments(false)
+    }
+  }
+
+  // 切换评论显示
+  const handleToggleComments = () => {
+    const newShowComments = !showComments
+    setShowComments(newShowComments)
+
+    if (newShowComments && comments.length === 0) {
+      loadComments()
+    }
+  }
+
+  // 提交评论
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !commentContent.trim() || submittingComment) return
+
+    setSubmittingComment(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+
+      const response = await fetch(`/api/posts/${post.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+        },
+        body: JSON.stringify({ content: commentContent }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setComments([...comments, data.comment])
+        setCommentsCount(commentsCount + 1)
+        setCommentContent('')
+      } else {
+        alert(data.error || '评论失败')
+      }
+    } catch (error) {
+      console.error('评论失败:', error)
+      alert('评论失败，请重试')
+    } finally {
+      setSubmittingComment(false)
+    }
+  }
+
+  // 删除评论
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('确定要删除这条评论吗？')) return
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+
+      const response = await fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+        },
+      })
+
+      if (response.ok) {
+        setComments(comments.filter(c => c.id !== commentId))
+        setCommentsCount(Math.max(0, commentsCount - 1))
+      } else {
+        const data = await response.json()
+        alert(data.error || '删除失败')
+      }
+    } catch (error) {
+      console.error('删除评论失败:', error)
+      alert('删除失败，请重试')
+    }
+  }
+
+  // 转发处理
+  const handleRepost = async (comment?: string) => {
+    if (!user) {
+      alert('请先登录')
+      return
+    }
+
+    if (isReposting) return
+
+    setIsReposting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+
+      // 使用原动态 ID（如果当前是转发）或当前动态 ID
+      const postIdToRepost = post.is_repost && post.original_post_id
+        ? post.original_post_id
+        : post.id
+
+      const response = await fetch(`/api/posts/${postIdToRepost}/repost`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+        },
+        body: JSON.stringify({ comment }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '转发失败')
+      }
+
+      // 动画效果
+      setRepostAnimating(true)
+      setTimeout(() => setRepostAnimating(false), 300)
+
+      // 显示成功提示
+      setRepostSuccess(true)
+      setTimeout(() => setRepostSuccess(false), 2000)
+
+      // 更新转发数
+      if (onRepost && data.repostCount !== undefined) {
+        onRepost(postIdToRepost, data.repostCount)
+      }
+    } catch (error) {
+      console.error('转发失败:', error)
+      const errorMessage = error instanceof Error ? error.message : '转发失败，请重试'
+      setRepostError(errorMessage)
+      setTimeout(() => setRepostError(''), 3000)
+    } finally {
+      setIsReposting(false)
+    }
+  }
+
+  // 取消转发
+  const handleCancelRepost = async () => {
+    if (isReposting) return
+
+    setIsReposting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+
+      const postIdToCancel = post.is_repost && post.original_post_id
+        ? post.original_post_id
+        : post.id
+
+      const response = await fetch(`/api/posts/${postIdToCancel}/repost`, {
+        method: 'DELETE',
+        headers: {
+          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '取消转发失败')
+      }
+
+      // 更新转发数
+      if (onRepost && data.repostCount !== undefined) {
+        onRepost(postIdToCancel, data.repostCount)
+      }
+    } catch (error) {
+      console.error('取消转发失败:', error)
+      const errorMessage = error instanceof Error ? error.message : '取消转发失败，请重试'
+      setRepostError(errorMessage)
+      setTimeout(() => setRepostError(''), 3000)
+    } finally {
+      setIsReposting(false)
+    }
+  }
+
+  // 直接转发（无评论）
+  const handleDirectRepost = async () => {
+    if (!user) {
+      alert('请先登录')
+      return
+    }
+
+    setShowRepostMenu(false)
+    await handleRepost()
+  }
+
+  // 点击转发按钮
+  const handleRepostClick = () => {
+    if (!user) {
+      alert('请先登录')
+      return
+    }
+
+    if (hasReposted) {
+      handleCancelRepost()
+    } else {
+      setShowRepostMenu(!showRepostMenu)
+    }
+  }
+
+  // 打开引用转发对话框
+  const handleQuoteRepost = () => {
+    setShowRepostMenu(false)
+    setShowRepostDialog(true)
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-md hover:border-gray-200 transition-all animate-fade-in-up hover-lift">
+      {/* 转发提示（如果是转发） */}
+      {post.is_repost && (
+        <div className="flex items-center space-x-2 mb-3 text-gray-500 text-sm">
+          <Repeat2 className="w-4 h-4" />
+          <Link
+            href={`/profile/${post.user?.username || 'unknown'}`}
+            className="font-medium hover:text-green-500 transition"
+          >
+            @{post.user?.username || '未知用户'}
+          </Link>
+          <span>转发了</span>
+        </div>
+      )}
+
+      {/* 转发评论（如果有） */}
+      {post.is_repost && post.repost_comment && (
+        <div className="mb-4 ml-0 sm:ml-[52px]">
+          <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+            {post.repost_comment}
+          </p>
+        </div>
+      )}
+
+      {/* 如果是转发，显示原动态（嵌套卡片） */}
+      {post.is_repost && post.original_post ? (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+          {/* 原动态用户信息 */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-start space-x-3 flex-1 min-w-0">
+              <Link
+                href={`/profile/${post.original_post.user?.username || 'unknown'}`}
+                className="flex-shrink-0"
+              >
+                <Avatar
+                  username={post.original_post.user?.username}
+                  avatarUrl={post.original_post.user?.avatar_url}
+                  avatarTemplate={post.original_post.user?.avatar_template}
+                  size="sm"
+                />
+              </Link>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <Link
+                    href={`/profile/${post.original_post.user?.username || 'unknown'}`}
+                    className="font-semibold text-sm text-gray-900 truncate hover:text-blue-500 transition"
+                  >
+                    {post.original_post.user?.username || '未知用户'}
+                  </Link>
+                  <span className="text-gray-400 text-xs flex-shrink-0">·</span>
+                  <span className="text-gray-500 text-xs flex-shrink-0">
+                    {formatRelativeTime(post.original_post.created_at)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 原动态内容 */}
+          <div className="mb-3">
+            <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed">
+              {post.original_post.content}
+            </p>
+          </div>
+
+          {/* 原动态图片（如果有） */}
+          {post.original_post.images && post.original_post.images.length > 0 && (
+            <div className="mb-3">
+              <div className="grid grid-cols-2 gap-2">
+                {post.original_post.images.slice(0, 4).map((img, index) => (
+                  <div
+                    key={index}
+                    className="relative aspect-square rounded overflow-hidden"
+                  >
+                    <Image
+                      src={img}
+                      alt={`图片 ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 原动态互动数据 */}
+          <div className="flex items-center space-x-4 pt-3 border-t border-gray-200 text-xs text-gray-500">
+            <span>❤️ {post.original_post.likes_count || 0}</span>
+            <span>💬 {post.original_post.comments_count || 0}</span>
+            <span>🔄 {post.original_post.repost_count || 0}</span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 普通动态：显示用户信息和内容 */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start space-x-3 flex-1 min-w-0">
+              {/* 头像 */}
+              <Link
+                href={`/profile/${post.user?.username || 'unknown'}`}
+                className="flex-shrink-0 group"
+              >
+                <Avatar
+                  username={post.user?.username}
+                  avatarUrl={post.user?.avatar_url}
+                  avatarTemplate={post.user?.avatar_template}
+                  size="md"
+                  className="group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2 transition"
+                />
+              </Link>
+
+              {/* 用户名和时间 */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <Link
+                    href={`/profile/${post.user?.username || 'unknown'}`}
+                    className="font-semibold text-gray-900 truncate hover:text-blue-500 transition"
+                  >
+                    {post.user?.username || '未知用户'}
+                  </Link>
+                  <span className="text-gray-400 text-sm flex-shrink-0">·</span>
+                  <span className="text-gray-500 text-sm flex-shrink-0">
+                    {formatRelativeTime(post.created_at)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 删除按钮（仅所有者可见） */}
+            {isOwner && onDelete && (
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all p-2 rounded-full active:scale-95 flex-shrink-0"
+                title="删除动态"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* 内容 */}
+          <div className="mb-4 ml-0 sm:ml-[52px]">
+            <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+              {post.content}
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* 图片展示 */}
+      {post.images && post.images.length > 0 && (
+        <div className="mb-4 ml-0 sm:ml-[52px]">
+          {/* 根据图片数量显示不同布局 */}
+          {post.images.length === 1 && (
+            <div className="relative w-full max-w-md aspect-video rounded-lg overflow-hidden cursor-pointer"
+              onClick={() => {
+                setSelectedImageIndex(0)
+                setShowImageViewer(true)
+              }}
+            >
+              <Image
+                src={post.images[0]}
+                alt="动态图片"
+                fill
+                className="object-cover hover:scale-105 transition-transform"
+                unoptimized
+              />
+            </div>
+          )}
+
+          {post.images.length === 2 && (
+            <div className="grid grid-cols-2 gap-2">
+              {post.images.map((img, index) => (
+                <div
+                  key={index}
+                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
+                  onClick={() => {
+                    setSelectedImageIndex(index)
+                    setShowImageViewer(true)
+                  }}
+                >
+                  <Image
+                    src={img}
+                    alt={`图片 ${index + 1}`}
+                    fill
+                    className="object-cover hover:scale-105 transition-transform"
+                    unoptimized
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {post.images.length === 3 && (
+            <div className="grid grid-cols-2 gap-2">
+              <div
+                className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
+                onClick={() => {
+                  setSelectedImageIndex(0)
+                  setShowImageViewer(true)
+                }}
+              >
+                <Image
+                  src={post.images[0]}
+                  alt="图片 1"
+                  fill
+                  className="object-cover hover:scale-105 transition-transform"
+                  unoptimized
+                />
+              </div>
+              <div className="grid grid-rows-2 gap-2">
+                {post.images.slice(1, 3).map((img, index) => (
+                  <div
+                    key={index}
+                    className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
+                    onClick={() => {
+                      setSelectedImageIndex(index + 1)
+                      setShowImageViewer(true)
+                    }}
+                  >
+                    <Image
+                      src={img}
+                      alt={`图片 ${index + 2}`}
+                      fill
+                      className="object-cover hover:scale-105 transition-transform"
+                      unoptimized
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {post.images.length === 4 && (
+            <div className="grid grid-cols-2 gap-2">
+              {post.images.map((img, index) => (
+                <div
+                  key={index}
+                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
+                  onClick={() => {
+                    setSelectedImageIndex(index)
+                    setShowImageViewer(true)
+                  }}
+                >
+                  <Image
+                    src={img}
+                    alt={`图片 ${index + 1}`}
+                    fill
+                    className="object-cover hover:scale-105 transition-transform"
+                    unoptimized
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {post.images.length >= 5 && (
+            <div className="grid grid-cols-3 gap-2">
+              {post.images.slice(0, 9).map((img, index) => (
+                <div
+                  key={index}
+                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
+                  onClick={() => {
+                    setSelectedImageIndex(index)
+                    setShowImageViewer(true)
+                  }}
+                >
+                  <Image
+                    src={img}
+                    alt={`图片 ${index + 1}`}
+                    fill
+                    className="object-cover hover:scale-105 transition-transform"
+                    unoptimized
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 底部：互动按钮 */}
+      <div className="flex items-center space-x-4 sm:space-x-8 pt-3 border-t border-gray-100 ml-0 sm:ml-[52px]">
+        {/* 点赞按钮 */}
+        <button
+          onClick={handleLike}
+          disabled={!user}
+          className={`flex items-center space-x-2 transition-all group ${
+            isLiked
+              ? 'text-red-500'
+              : 'text-gray-500 hover:text-red-500'
+          } ${!user ? 'cursor-not-allowed opacity-50' : 'active:scale-95'} ${
+            likeAnimating ? 'animate-heartbeat' : ''
+          }`}
+          title={user ? (isLiked ? '取消点赞' : '点赞') : '请先登录'}
+        >
+          <Heart
+            className={`w-5 h-5 transition-all ${
+              isLiked ? 'fill-current scale-110' : 'group-hover:scale-110 group-hover:fill-current group-hover:fill-opacity-20'
+            }`}
+          />
+          <span className="text-sm font-medium tabular-nums transition-smooth">
+            {post.likes_count || 0}
+          </span>
+        </button>
+
+        {/* 评论按钮 */}
+        <button
+          onClick={handleToggleComments}
+          disabled={!user}
+          className={`flex items-center space-x-2 transition-all group ${
+            showComments ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
+          } ${!user ? 'cursor-not-allowed opacity-50' : 'active:scale-95'}`}
+          title={user ? '评论' : '请先登录'}
+        >
+          <MessageCircle className={`w-5 h-5 transition-transform ${showComments ? 'fill-current' : 'group-hover:scale-110'}`} />
+          <span className="text-sm font-medium tabular-nums">{commentsCount}</span>
+        </button>
+
+        {/* 转发按钮 */}
+        <div className="relative" ref={repostMenuRef}>
+          <button
+            onClick={handleRepostClick}
+            disabled={!user || isReposting}
+            className={`flex items-center space-x-2 transition-all group ${
+              hasReposted
+                ? 'text-green-500'
+                : 'text-gray-500 hover:text-green-500'
+            } ${!user || isReposting ? 'cursor-not-allowed opacity-50' : 'active:scale-95'} ${
+              repostAnimating ? 'animate-spin' : ''
+            }`}
+            title={user ? (hasReposted ? '取消转发' : '转发') : '请先登录'}
+          >
+            <Repeat2
+              className={`w-5 h-5 transition-all ${
+                hasReposted ? 'scale-110' : 'group-hover:scale-110'
+              }`}
+            />
+            <span className="text-sm font-medium tabular-nums transition-smooth">
+              {post.repost_count || 0}
+            </span>
+          </button>
+
+          {/* 转发成功提示 */}
+          {repostSuccess && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-full shadow-lg z-50 animate-fade-in whitespace-nowrap">
+              转发成功 ✓
+            </div>
+          )}
+
+          {/* 转发错误提示 */}
+          {repostError && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-full shadow-lg z-50 animate-fade-in whitespace-nowrap">
+              {repostError}
+            </div>
+          )}
+
+          {/* 转发菜单 */}
+          {showRepostMenu && !hasReposted && (
+            <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 min-w-[160px] z-50 animate-scale-in">
+              <button
+                onClick={handleDirectRepost}
+                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
+              >
+                <Repeat2 className="w-4 h-4 text-green-500" />
+                <span className="font-medium">转发</span>
+              </button>
+              <button
+                onClick={handleQuoteRepost}
+                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
+              >
+                <MessageSquareQuote className="w-4 h-4 text-blue-500" />
+                <span className="font-medium">引用</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 评论区域 */}
+      {showComments && (
+        <div className="mt-4 pt-4 border-t border-gray-100 ml-0 sm:ml-[52px] space-y-4">
+          {/* 评论输入框 */}
+          {user && (
+            <form onSubmit={handleSubmitComment} className="flex items-start space-x-3">
+              <Avatar
+                username={profile?.username || user.email?.split('@')[0]}
+                avatarUrl={profile?.avatar_url}
+                avatarTemplate={profile?.avatar_template}
+                size="sm"
+                className="flex-shrink-0 mt-1"
+              />
+              <div className="flex-1">
+                <textarea
+                  value={commentContent}
+                  onChange={(e) => setCommentContent(e.target.value)}
+                  placeholder="写下你的评论..."
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={2}
+                  maxLength={280}
+                  disabled={submittingComment}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-gray-400">
+                    {commentContent.length}/280
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={!commentContent.trim() || submittingComment}
+                    className="flex items-center space-x-1 px-4 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-full hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{submittingComment ? '发送中...' : '发送'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* 评论列表 */}
+          <div className="space-y-3">
+            {loadingComments ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex space-x-3 animate-pulse">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-6 text-gray-400 text-sm">
+                <MessageCircle className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                还没有评论，快来抢沙发吧~
+              </div>
+            ) : (
+              comments.map((comment) => (
+                <div key={comment.id} className="flex items-start space-x-3 group animate-fade-in-up">
+                  <Link
+                    href={`/profile/${comment.user?.username || 'unknown'}`}
+                    className="flex-shrink-0"
+                  >
+                    <Avatar
+                      username={comment.user?.username}
+                      avatarUrl={comment.user?.avatar_url}
+                      avatarTemplate={comment.user?.avatar_template}
+                      size="sm"
+                    />
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <Link
+                        href={`/profile/${comment.user?.username || 'unknown'}`}
+                        className="font-medium text-sm text-gray-900 hover:text-blue-500 transition"
+                      >
+                        {comment.user?.username || '未知用户'}
+                      </Link>
+                      <span className="text-xs text-gray-400">
+                        {formatRelativeTime(comment.created_at)}
+                      </span>
+                      {user?.id === comment.user_id && (
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition ml-auto"
+                          title="删除评论"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap break-words">
+                      {comment.content}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 图片查看器 */}
+      {showImageViewer && post.images && post.images.length > 0 && (
+        <ImageViewer
+          images={post.images}
+          initialIndex={selectedImageIndex}
+          onClose={() => setShowImageViewer(false)}
+        />
+      )}
+
+      {/* 转发对话框 */}
+      <RepostDialog
+        post={post}
+        isOpen={showRepostDialog}
+        onClose={() => setShowRepostDialog(false)}
+        onRepost={handleRepost}
+      />
+    </div>
+  )
+})
+
+export default PostCard
