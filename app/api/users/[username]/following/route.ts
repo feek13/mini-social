@@ -67,12 +67,24 @@ export async function GET(
     }
 
     // 提取关注信息和通知状态
-    const following = follows?.map((f) => f.following).filter(Boolean) || []
+    type FollowData = {
+      following: {
+        id: string
+        username: string
+        avatar_url: string | null
+        avatar_template: string | null
+        bio: string | null
+      }
+      notify_on_post: boolean
+    }
+
+    const following = follows?.map((f) => (f as FollowData).following).filter(Boolean) || []
     const notifyStatuses: { [userId: string]: boolean } = {}
 
     follows?.forEach((f) => {
-      if (f.following) {
-        notifyStatuses[f.following.id] = f.notify_on_post
+      const followData = f as FollowData
+      if (followData.following) {
+        notifyStatuses[followData.following.id] = followData.notify_on_post
       }
     })
 
