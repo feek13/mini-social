@@ -11,6 +11,8 @@ import ImageViewer from '@/components/ImageViewer'
 import RepostDialog from '@/components/RepostDialog'
 import { formatRelativeTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { renderText } from '@/lib/textParser'
+import { useRouter } from 'next/navigation'
 
 interface Comment {
   id: string
@@ -45,6 +47,7 @@ const PostCard = memo(function PostCard({
   hasReposted = false,
   commentsCount: initialCommentsCount = 0,
 }: PostCardProps) {
+  const router = useRouter()
   const { user, profile } = useAuth()
   const [isDeleting, setIsDeleting] = useState(false)
   const [likeAnimating, setLikeAnimating] = useState(false)
@@ -337,8 +340,45 @@ const PostCard = memo(function PostCard({
     setShowRepostDialog(true)
   }
 
+  // 点击卡片进入详情页
+  const handleCardClick = (e: React.MouseEvent) => {
+    // 如果点击的是按钮、链接或输入框，不触发跳转
+    const target = e.target as HTMLElement
+    if (
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('textarea') ||
+      target.closest('input')
+    ) {
+      return
+    }
+
+    // 跳转到详情页
+    router.push(`/post/${post.id}`)
+  }
+
+  // 点击原帖区域跳转到原帖详情页
+  const handleOriginalPostClick = (e: React.MouseEvent) => {
+    // 如果点击的是链接，让链接自己处理跳转
+    const target = e.target as HTMLElement
+    if (target.closest('a')) {
+      return
+    }
+
+    // 阻止事件冒泡到外层卡片
+    e.stopPropagation()
+
+    // 跳转到原帖详情页
+    if (post.original_post_id) {
+      router.push(`/post/${post.original_post_id}`)
+    }
+  }
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-md hover:border-gray-200 transition-all animate-fade-in-up hover-lift">
+    <div
+      onClick={handleCardClick}
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-md hover:border-gray-200 transition-all animate-fade-in-up hover-lift cursor-pointer"
+    >
       {/* 转发提示（如果是转发） */}
       {post.is_repost && (
         <div className="flex items-center space-x-2 mb-3 text-gray-500 text-sm">
@@ -355,16 +395,22 @@ const PostCard = memo(function PostCard({
 
       {/* 转发评论（如果有） */}
       {post.is_repost && post.repost_comment && (
-        <div className="mb-4 ml-0 sm:ml-[52px]">
+        <Link
+          href={`/post/${post.id}`}
+          className="block mb-4 ml-0 sm:ml-[52px] cursor-pointer hover:bg-gray-50 -mx-4 px-4 py-2 transition"
+        >
           <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-            {post.repost_comment}
+            {renderText(post.repost_comment)}
           </p>
-        </div>
+        </Link>
       )}
 
       {/* 如果是转发，显示原动态（嵌套卡片） */}
       {post.is_repost && post.original_post ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+        <div
+          onClick={handleOriginalPostClick}
+          className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 cursor-pointer hover:bg-gray-100 transition"
+        >
           {/* 原动态用户信息 */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -388,7 +434,7 @@ const PostCard = memo(function PostCard({
                     {post.original_post.user?.username || '未知用户'}
                   </Link>
                   <span className="text-gray-400 text-xs flex-shrink-0">·</span>
-                  <span className="text-gray-500 text-xs flex-shrink-0">
+                  <span className="text-gray-500 text-xs flex-shrink-0" suppressHydrationWarning>
                     {formatRelativeTime(post.original_post.created_at)}
                   </span>
                 </div>
@@ -397,11 +443,14 @@ const PostCard = memo(function PostCard({
           </div>
 
           {/* 原动态内容 */}
-          <div className="mb-3">
+          <Link
+            href={`/post/${post.original_post_id}`}
+            className="block mb-3 cursor-pointer hover:bg-white -mx-2 px-2 py-1 transition rounded"
+          >
             <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed">
-              {post.original_post.content}
+              {renderText(post.original_post.content)}
             </p>
-          </div>
+          </Link>
 
           {/* 原动态图片（如果有） */}
           {post.original_post.images && post.original_post.images.length > 0 && (
@@ -461,7 +510,7 @@ const PostCard = memo(function PostCard({
                     {post.user?.username || '未知用户'}
                   </Link>
                   <span className="text-gray-400 text-sm flex-shrink-0">·</span>
-                  <span className="text-gray-500 text-sm flex-shrink-0">
+                  <span className="text-gray-500 text-sm flex-shrink-0" suppressHydrationWarning>
                     {formatRelativeTime(post.created_at)}
                   </span>
                 </div>
@@ -482,11 +531,14 @@ const PostCard = memo(function PostCard({
           </div>
 
           {/* 内容 */}
-          <div className="mb-4 ml-0 sm:ml-[52px]">
+          <Link
+            href={`/post/${post.id}`}
+            className="block mb-4 ml-0 sm:ml-[52px] cursor-pointer hover:bg-gray-50 -mx-4 px-4 py-2 transition rounded"
+          >
             <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-              {post.content}
+              {renderText(post.content)}
             </p>
-          </div>
+          </Link>
         </>
       )}
 
@@ -658,17 +710,14 @@ const PostCard = memo(function PostCard({
         </button>
 
         {/* 评论按钮 */}
-        <button
-          onClick={handleToggleComments}
-          disabled={!user}
-          className={`flex items-center space-x-2 transition-all group ${
-            showComments ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'
-          } ${!user ? 'cursor-not-allowed opacity-50' : 'active:scale-95'}`}
-          title={user ? '评论' : '请先登录'}
+        <Link
+          href={`/post/${post.id}`}
+          className="flex items-center space-x-2 transition-all group text-gray-500 hover:text-blue-500 active:scale-95"
+          title="查看评论"
         >
-          <MessageCircle className={`w-5 h-5 transition-transform ${showComments ? 'fill-current' : 'group-hover:scale-110'} ${commentAnimating ? 'animate-comment-bounce' : ''}`} />
-          <span className="text-sm font-medium tabular-nums">{commentsCount}</span>
-        </button>
+          <MessageCircle className="w-5 h-5 transition-transform group-hover:scale-110" />
+          <span className="text-sm font-medium tabular-nums">{post.comments_count || 0}</span>
+        </Link>
 
         {/* 转发按钮 */}
         <div className="relative" ref={repostMenuRef}>
@@ -814,7 +863,7 @@ const PostCard = memo(function PostCard({
                       >
                         {comment.user?.username || '未知用户'}
                       </Link>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400" suppressHydrationWarning>
                         {formatRelativeTime(comment.created_at)}
                       </span>
                       {user?.id === comment.user_id && (

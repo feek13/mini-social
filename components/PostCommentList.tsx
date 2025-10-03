@@ -6,6 +6,7 @@ import { Heart, MessageCircle } from 'lucide-react'
 import { Comment } from '@/types/database'
 import Avatar from '@/components/Avatar'
 import { formatRelativeTime } from '@/lib/utils'
+import { renderText } from '@/lib/textParser'
 
 interface PostCommentListProps {
   comments: Comment[]
@@ -68,13 +69,15 @@ export default function PostCommentList({
         return (
           <div
             key={comment.id}
-            className="p-4 hover:bg-gray-50 transition-colors"
+            onClick={() => window.location.href = `/post/${postId}/comment/${comment.id}`}
+            className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <div className="flex space-x-3">
               {/* 头像 */}
               <Link
                 href={`/profile/${comment.user?.username || 'unknown'}`}
                 className="flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
               >
                 <Avatar
                   username={comment.user?.username}
@@ -92,25 +95,31 @@ export default function PostCommentList({
                   <Link
                     href={`/profile/${comment.user?.username || 'unknown'}`}
                     className="font-semibold text-sm text-gray-900 hover:text-blue-500 transition"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     @{comment.user?.username || '未知用户'}
                   </Link>
                   <span className="text-gray-400 text-xs">·</span>
-                  <span className="text-gray-500 text-xs">
+                  <span className="text-gray-500 text-xs" suppressHydrationWarning>
                     {formatRelativeTime(comment.created_at)}
                   </span>
                 </div>
 
                 {/* 评论文本 */}
-                <p className="text-gray-800 text-sm whitespace-pre-wrap break-words leading-relaxed mb-2">
-                  {comment.content}
-                </p>
+                <div className="mb-2">
+                  <p className="text-gray-800 text-sm whitespace-pre-wrap break-words leading-relaxed">
+                    {renderText(comment.content)}
+                  </p>
+                </div>
 
                 {/* 互动按钮 */}
                 <div className="flex items-center space-x-6 text-xs text-gray-500">
                   {/* 点赞 */}
                   <button
-                    onClick={() => handleLikeComment(comment.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleLikeComment(comment.id)
+                    }}
                     className={`flex items-center space-x-1 transition-colors ${
                       isLiked ? 'text-red-500' : 'hover:text-red-500'
                     }`}
@@ -122,24 +131,16 @@ export default function PostCommentList({
                   </button>
 
                   {/* 回复数和链接 */}
-                  {hasReplies ? (
-                    <Link
-                      href={`/post/${postId}/comment/${comment.id}`}
-                      className="flex items-center space-x-1 hover:text-blue-500 transition-colors"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>{comment.reply_count} 条回复</span>
-                      <span className="ml-1">→</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/post/${postId}/comment/${comment.id}`}
-                      className="flex items-center space-x-1 hover:text-blue-500 transition-colors"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>回复</span>
-                    </Link>
-                  )}
+                  <Link
+                    href={`/post/${postId}/comment/${comment.id}`}
+                    className="flex items-center space-x-1 hover:text-blue-500 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>{comment.reply_count || 0}</span>
+                    <span>回复</span>
+                    {hasReplies && <span className="ml-1">→</span>}
+                  </Link>
                 </div>
               </div>
             </div>

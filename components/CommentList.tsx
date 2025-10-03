@@ -97,7 +97,7 @@ export default function CommentList({
                       {comment.user?.username || '未知用户'}
                     </Link>
                     <span className="text-gray-400 text-xs flex-shrink-0">·</span>
-                    <span className="text-gray-500 text-xs flex-shrink-0">
+                    <span className="text-gray-500 text-xs flex-shrink-0" suppressHydrationWarning>
                       {formatRelativeTime(comment.created_at)}
                     </span>
                   </div>

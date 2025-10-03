@@ -9,6 +9,7 @@ import { Profile } from '@/types/database'
 interface CommentInputProps {
   onSubmit: (content: string) => Promise<void>
   placeholder?: string
+  initialValue?: string
 }
 
 interface Suggestion {
@@ -19,10 +20,11 @@ interface Suggestion {
 
 export default function CommentInput({
   onSubmit,
-  placeholder = '说点什么...'
+  placeholder = '说点什么...',
+  initialValue = ''
 }: CommentInputProps) {
   const { user, profile } = useAuth()
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState(initialValue)
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)

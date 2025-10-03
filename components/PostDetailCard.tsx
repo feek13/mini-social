@@ -11,6 +11,7 @@ import Avatar from '@/components/Avatar'
 import ImageViewer from '@/components/ImageViewer'
 import RepostDialog from '@/components/RepostDialog'
 import { supabase } from '@/lib/supabase'
+import { renderText } from '@/lib/textParser'
 
 interface PostDetailCardProps {
   post: Post
@@ -19,54 +20,6 @@ interface PostDetailCardProps {
   onLike?: () => void
   onUnlike?: () => void
   onRepost?: (newRepostCount: number) => void
-}
-
-// 解析文本中的 # 和 @ 为可点击链接
-function parseContent(content: string) {
-  const parts = []
-  let lastIndex = 0
-
-  // 匹配 # 话题和 @ 用户
-  const regex = /(#[a-zA-Z0-9_\u4e00-\u9fa5]+)|(@[a-zA-Z0-9_]+)/g
-  let match
-
-  while ((match = regex.exec(content)) !== null) {
-    // 添加普通文本
-    if (match.index > lastIndex) {
-      parts.push({
-        type: 'text',
-        content: content.substring(lastIndex, match.index)
-      })
-    }
-
-    // 添加话题或提及
-    const text = match[0]
-    if (text.startsWith('#')) {
-      parts.push({
-        type: 'hashtag',
-        content: text,
-        value: text.substring(1)
-      })
-    } else if (text.startsWith('@')) {
-      parts.push({
-        type: 'mention',
-        content: text,
-        value: text.substring(1)
-      })
-    }
-
-    lastIndex = regex.lastIndex
-  }
-
-  // 添加剩余文本
-  if (lastIndex < content.length) {
-    parts.push({
-      type: 'text',
-      content: content.substring(lastIndex)
-    })
-  }
-
-  return parts
 }
 
 export default function PostDetailCard({
@@ -235,35 +188,6 @@ export default function PostDetailCard({
     setShowRepostDialog(true)
   }
 
-  // 渲染内容（支持 # 和 @）
-  const renderContent = (content: string) => {
-    const parts = parseContent(content)
-    return parts.map((part, index) => {
-      if (part.type === 'hashtag') {
-        return (
-          <Link
-            key={index}
-            href={`/search?q=${encodeURIComponent('#' + part.value)}`}
-            className="text-blue-500 hover:text-blue-600 hover:underline"
-          >
-            {part.content}
-          </Link>
-        )
-      } else if (part.type === 'mention') {
-        return (
-          <Link
-            key={index}
-            href={`/profile/${part.value}`}
-            className="text-blue-500 hover:text-blue-600 hover:underline"
-          >
-            {part.content}
-          </Link>
-        )
-      } else {
-        return <span key={index}>{part.content}</span>
-      }
-    })
-  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
@@ -297,19 +221,23 @@ export default function PostDetailCard({
         {post.is_repost && post.repost_comment && (
           <div className="mb-4">
             <p className="text-gray-800 text-lg whitespace-pre-wrap break-words leading-relaxed">
-              {renderContent(post.repost_comment)}
+              {renderText(post.repost_comment)}
             </p>
           </div>
         )}
 
         {/* 原动态或普通动态 */}
         {post.is_repost && post.original_post ? (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+          <div
+            className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 cursor-pointer hover:bg-gray-100 transition-colors"
+            onClick={() => router.push(`/post/${post.original_post_id}`)}
+          >
             {/* 原动态用户信息 */}
             <div className="flex items-start space-x-3 mb-3">
               <Link
                 href={`/profile/${post.original_post.user?.username || 'unknown'}`}
                 className="flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
               >
                 <Avatar
                   username={post.original_post.user?.username}
@@ -322,6 +250,7 @@ export default function PostDetailCard({
                 <Link
                   href={`/profile/${post.original_post.user?.username || 'unknown'}`}
                   className="font-semibold text-gray-900 hover:text-blue-500 transition"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {post.original_post.user?.username || '未知用户'}
                 </Link>
@@ -333,7 +262,7 @@ export default function PostDetailCard({
 
             {/* 原动态内容 */}
             <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-3">
-              {renderContent(post.original_post.content)}
+              {renderText(post.original_post.content)}
             </p>
 
             {/* 原动态图片 */}
@@ -385,7 +314,7 @@ export default function PostDetailCard({
             {/* 动态内容 */}
             <div className="mb-4">
               <p className="text-gray-800 text-xl whitespace-pre-wrap break-words leading-relaxed">
-                {renderContent(post.content)}
+                {renderText(post.content)}
               </p>
             </div>
 

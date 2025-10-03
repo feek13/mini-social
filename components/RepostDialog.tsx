@@ -120,7 +120,7 @@ export default function RepostDialog({ post, isOpen, onClose, onRepost }: Repost
                       {originalPost.user?.username || '未知用户'}
                     </span>
                     <span className="text-gray-400 text-xs">·</span>
-                    <span className="text-gray-500 text-xs">
+                    <span className="text-gray-500 text-xs" suppressHydrationWarning>
                       {formatRelativeTime(originalPost.created_at)}
                     </span>
                   </div>

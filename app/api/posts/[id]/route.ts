@@ -111,6 +111,7 @@ export async function GET(
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    console.log('获取动态详情')
 
     // 获取动态 ID
     const { id } = await params
@@ -122,35 +123,75 @@ export async function GET(
       )
     }
 
-    // 获取动态详情
-    const { data: post, error } = await supabase
+    // 获取动态详情（包含用户信息）
+    // 使用两次查询避免关系歧义
+    const { data: postData, error: postError } = await supabase
       .from('posts')
-      .select(`
-        *,
-        profiles!posts_user_id_fkey (
-          username,
-          avatar_url,
-          avatar_template
-        )
-      `)
+      .select('*')
       .eq('id', id)
       .single()
 
-    if (error || !post) {
+    if (postError || !postData) {
+      console.error('获取动态详情错误:', postError)
       return NextResponse.json(
         { error: '动态不存在' },
         { status: 404 }
       )
     }
 
-    // 重命名 profiles 为 user 以匹配前端期望
-    const postWithUser = {
-      ...post,
-      user: post.profiles,
-      profiles: undefined
+    // 获取用户信息
+    const { data: userData } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, avatar_template')
+      .eq('id', postData.user_id)
+      .single()
+
+    const post = {
+      ...postData,
+      user: userData
     }
 
-    return NextResponse.json({ post: postWithUser })
+    const error = null
+
+    if (error) {
+      console.error('获取动态详情错误:', error)
+      return NextResponse.json(
+        { error: '动态不存在' },
+        { status: 404 }
+      )
+    }
+
+    if (!post) {
+      return NextResponse.json(
+        { error: '动态不存在' },
+        { status: 404 }
+      )
+    }
+
+    // 如果是转发，获取原动态
+    if (post.is_repost && post.original_post_id) {
+      const { data: originalPostData } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', post.original_post_id)
+        .single()
+
+      if (originalPostData) {
+        // 获取原动态作者信息
+        const { data: originalUserData } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, avatar_template')
+          .eq('id', originalPostData.user_id)
+          .single()
+
+        post.original_post = {
+          ...originalPostData,
+          user: originalUserData
+        }
+      }
+    }
+
+    return NextResponse.json({ post })
   } catch (error) {
     console.error('API 错误:', error)
     return NextResponse.json(

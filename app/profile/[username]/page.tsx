@@ -373,7 +373,7 @@ export default function ProfilePage() {
                     )}
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-4 h-4" />
-                      <span className="text-sm">
+                      <span className="text-sm" suppressHydrationWarning>
                         加入于 {formatRelativeTime(data.profile.created_at)}
                       </span>
                     </div>

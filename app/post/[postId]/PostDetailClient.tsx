@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Post, Comment } from '@/types/database'
 import PostDetailCard from '@/components/PostDetailCard'
@@ -24,119 +24,129 @@ export default function PostDetailClient({
   const [hasReposted, setHasReposted] = useState(false)
   const [loadingLikeStatus, setLoadingLikeStatus] = useState(true)
   const [loadingRepostStatus, setLoadingRepostStatus] = useState(true)
+  const [isLikeProcessing, setIsLikeProcessing] = useState(false)
+  const [pendingLikeState, setPendingLikeState] = useState<boolean | null>(null)
 
-  // 检查点赞状态
+  // 检查点赞状态（优化：使用单次查询同时获取点赞和转发状态）
   useEffect(() => {
-    const checkLikeStatus = async () => {
+    const checkInteractionStatus = async () => {
       if (!user) {
         setLoadingLikeStatus(false)
-        return
-      }
-
-      try {
-        const { data } = await supabase
-          .from('likes')
-          .select('id')
-          .eq('post_id', post.id)
-          .eq('user_id', user.id)
-          .single()
-
-        setIsLiked(!!data)
-      } catch (error) {
-        console.error('检查点赞状态失败:', error)
-      } finally {
-        setLoadingLikeStatus(false)
-      }
-    }
-
-    checkLikeStatus()
-  }, [user, post.id])
-
-  // 检查转发状态
-  useEffect(() => {
-    const checkRepostStatus = async () => {
-      if (!user) {
         setLoadingRepostStatus(false)
         return
       }
 
       try {
-        const originalPostId = post.is_repost && post.original_post_id
-          ? post.original_post_id
-          : post.id
+        // 并行查询点赞和转发状态
+        const [likeResult, repostResult] = await Promise.all([
+          supabase
+            .from('likes')
+            .select('post_id')
+            .eq('post_id', post.id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('posts')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('original_post_id', post.is_repost && post.original_post_id ? post.original_post_id : post.id)
+            .eq('is_repost', true)
+            .maybeSingle()
+        ])
 
-        const { data } = await supabase
-          .from('posts')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('original_post_id', originalPostId)
-          .eq('is_repost', true)
-          .single()
+        // 设置点赞状态
+        if (likeResult.error) {
+          console.error('检查点赞状态失败:', likeResult.error)
+          setIsLiked(false)
+        } else {
+          setIsLiked(!!likeResult.data)
+        }
 
-        setHasReposted(!!data)
+        // 设置转发状态
+        if (repostResult.error) {
+          console.error('检查转发状态失败:', repostResult.error)
+          setHasReposted(false)
+        } else {
+          setHasReposted(!!repostResult.data)
+        }
       } catch (error) {
-        console.error('检查转发状态失败:', error)
+        console.error('检查互动状态异常:', error)
+        setIsLiked(false)
+        setHasReposted(false)
       } finally {
+        setLoadingLikeStatus(false)
         setLoadingRepostStatus(false)
       }
     }
 
-    checkRepostStatus()
+    checkInteractionStatus()
   }, [user, post.id, post.is_repost, post.original_post_id])
 
-  // 点赞
+
+  // 使用 useRef 来存储防抖定时器
+  const likeDebounceTimer = useRef<NodeJS.Timeout | null>(null)
+
+  // 点赞/取消点赞（使用防抖优化性能）
   const handleLike = async () => {
     if (!user) return
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token
+    // 立即进行乐观更新UI，提供即时反馈
+    const newLikeState = !isLiked
+    setIsLiked(newLikeState)
+    setPost(prev => ({
+      ...prev,
+      likes_count: newLikeState ? prev.likes_count + 1 : prev.likes_count - 1
+    }))
 
-      const response = await fetch(`/api/posts/${post.id}/like`, {
-        method: 'POST',
-        headers: {
-          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
-        },
-      })
+    // 设置待处理状态
+    setPendingLikeState(newLikeState)
 
-      if (response.ok) {
-        setIsLiked(true)
-        setPost(prev => ({
-          ...prev,
-          likes_count: prev.likes_count + 1
-        }))
-      }
-    } catch (error) {
-      console.error('点赞失败:', error)
+    // 清除之前的定时器
+    if (likeDebounceTimer.current) {
+      clearTimeout(likeDebounceTimer.current)
     }
+
+    // 300ms 防抖：用户停止点击后才发送请求
+    likeDebounceTimer.current = setTimeout(async () => {
+      if (isLikeProcessing || pendingLikeState === null) return
+
+      setIsLikeProcessing(true)
+      const targetState = pendingLikeState
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const accessToken = session?.access_token
+
+        const response = await fetch(`/api/posts/${post.id}/like`, {
+          method: 'POST',
+          headers: {
+            ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          // 使用API返回的实际状态更新UI
+          setIsLiked(data.isLiked)
+          setPost(prev => ({
+            ...prev,
+            likes_count: data.likesCount
+          }))
+        } else {
+          // 请求失败，保持当前UI状态（已经乐观更新了）
+          console.error('点赞请求失败')
+        }
+      } catch (error) {
+        console.error('点赞操作失败:', error)
+      } finally {
+        setIsLikeProcessing(false)
+        setPendingLikeState(null)
+      }
+    }, 300)
   }
 
-  // 取消点赞
-  const handleUnlike = async () => {
-    if (!user) return
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token
-
-      const response = await fetch(`/api/posts/${post.id}/like`, {
-        method: 'DELETE',
-        headers: {
-          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
-        },
-      })
-
-      if (response.ok) {
-        setIsLiked(false)
-        setPost(prev => ({
-          ...prev,
-          likes_count: Math.max(0, prev.likes_count - 1)
-        }))
-      }
-    } catch (error) {
-      console.error('取消点赞失败:', error)
-    }
-  }
+  // 取消点赞使用相同的函数
+  const handleUnlike = handleLike
 
   // 转发
   const handleRepost = (newRepostCount: number) => {

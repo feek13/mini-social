@@ -94,13 +94,17 @@ CREATE TABLE IF NOT EXISTS comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   post_id UUID REFERENCES posts(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  parent_comment_id UUID REFERENCES comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
+  depth INTEGER DEFAULT 0 NOT NULL,
+  reply_count INTEGER DEFAULT 0 NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 创建索引
 CREATE INDEX IF NOT EXISTS comments_post_id_idx ON comments(post_id);
 CREATE INDEX IF NOT EXISTS comments_user_id_idx ON comments(user_id);
+CREATE INDEX IF NOT EXISTS comments_parent_comment_id_idx ON comments(parent_comment_id);
 CREATE INDEX IF NOT EXISTS comments_created_at_idx ON comments(created_at DESC);
 
 -- 启用行级安全（RLS）
@@ -193,6 +197,36 @@ CREATE TRIGGER update_likes_count_trigger
   AFTER INSERT OR DELETE ON likes
   FOR EACH ROW
   EXECUTE FUNCTION update_post_likes_count();
+
+-- ================================================
+-- 6. 创建触发器：自动更新父评论的 reply_count
+-- ================================================
+-- 删除旧触发器（如果存在）
+DROP TRIGGER IF EXISTS update_reply_count_trigger ON comments;
+
+CREATE OR REPLACE FUNCTION update_comment_reply_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    -- 如果有父评论，增加父评论的回复数
+    IF NEW.parent_comment_id IS NOT NULL THEN
+      UPDATE comments SET reply_count = reply_count + 1 WHERE id = NEW.parent_comment_id;
+    END IF;
+    RETURN NEW;
+  ELSIF TG_OP = 'DELETE' THEN
+    -- 如果有父评论，减少父评论的回复数
+    IF OLD.parent_comment_id IS NOT NULL THEN
+      UPDATE comments SET reply_count = reply_count - 1 WHERE id = OLD.parent_comment_id;
+    END IF;
+    RETURN OLD;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_reply_count_trigger
+  AFTER INSERT OR DELETE ON comments
+  FOR EACH ROW
+  EXECUTE FUNCTION update_comment_reply_count();
 
 -- ================================================
 -- 完成！

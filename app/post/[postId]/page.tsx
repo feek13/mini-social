@@ -13,8 +13,10 @@ export async function generateMetadata({
     const { postId } = await params
 
     // 获取动态详情
-    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl.replace('/supabase', '')}/api/posts/${postId}`, {
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000'
+    const response = await fetch(`${baseUrl}/api/posts/${postId}`, {
       cache: 'no-store'
     })
 
@@ -26,8 +28,27 @@ export async function generateMetadata({
 
     const { post } = await response.json()
 
-    const title = `${post.user?.username || '用户'}: ${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''} - MiniSocial`
-    const description = post.content.substring(0, 160)
+    // 如果是转发，使用原帖内容；否则使用当前帖子内容
+    let displayContent = post.content || ''
+    let displayUsername = post.user?.username || '用户'
+
+    if (post.is_repost && post.original_post) {
+      displayContent = post.original_post.content || ''
+      displayUsername = post.original_post.user?.username || '用户'
+
+      // 如果转发有评论，添加到标题中
+      if (post.repost_comment) {
+        displayContent = `${post.repost_comment} (转发: ${displayContent})`
+      }
+    }
+
+    // 如果没有内容，使用默认文本
+    if (!displayContent.trim()) {
+      displayContent = '查看这条动态'
+    }
+
+    const title = `${displayUsername}: ${displayContent.substring(0, 100)}${displayContent.length > 100 ? '...' : ''} - MiniSocial`
+    const description = displayContent.substring(0, 160)
 
     return {
       title,
@@ -70,7 +91,9 @@ export default async function PostDetailPage({
   const { postId } = await params
 
   // 获取动态详情
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/supabase', '') || 'http://localhost:3000'
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000'
 
   let post = null
   let comments = []
