@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import PostDetailClient from './PostDetailClient'
-import { Comment } from '@/types/database'
+import type { Comment } from '@/types/database'
 import { createClient } from '@supabase/supabase-js'
 
 // 生成动态 metadata
@@ -133,7 +133,7 @@ export default async function PostDetailPage({
   const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   let post = null
-  let comments: Record<string, unknown>[] = []
+  let comments: Comment[] = []
 
   try {
     // 获取帖子数据
@@ -193,7 +193,7 @@ export default async function PostDetailPage({
       comments = commentsData.map((comment: Record<string, unknown>) => ({
         ...comment,
         user: comment.user
-      }))
+      })) as Comment[]
     }
   } catch (error) {
     console.error('获取动态详情失败:', error)
