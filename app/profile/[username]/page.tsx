@@ -40,6 +40,7 @@ export default function ProfilePage() {
 
   const [data, setData] = useState<ProfileData | null>(null)
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set())
+  const [repostedPostIds, setRepostedPostIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [followStatus, setFollowStatus] = useState({ following: false, notifyOnPost: false })
@@ -69,6 +70,32 @@ export default function ProfilePage() {
       setLikedPostIds(likedIds)
     } catch (err) {
       console.error('获取点赞列表错误:', err)
+    }
+  }, [user])
+
+  // 获取用户转发的动态列表
+  const fetchUserReposts = useCallback(async () => {
+    if (!user) {
+      setRepostedPostIds(new Set())
+      return
+    }
+
+    try {
+      const { data: reposts, error } = await supabase
+        .from('posts')
+        .select('original_post_id')
+        .eq('user_id', user.id)
+        .eq('is_repost', true)
+
+      if (error) {
+        console.error('获取转发列表错误:', error)
+        return
+      }
+
+      const repostedIds = new Set(reposts?.map((repost) => repost.original_post_id).filter(Boolean) || [])
+      setRepostedPostIds(repostedIds)
+    } catch (err) {
+      console.error('获取转发列表错误:', err)
     }
   }, [user])
 
@@ -116,9 +143,10 @@ export default function ProfilePage() {
 
       setData(result)
 
-      // 如果用户已登录，获取点赞状态和关注状态
+      // 如果用户已登录，获取点赞状态、转发状态和关注状态
       if (user) {
         await fetchUserLikes()
+        await fetchUserReposts()
         await fetchFollowStatus()
       }
     } catch (err) {
@@ -127,7 +155,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false)
     }
-  }, [username, user, fetchUserLikes, fetchFollowStatus])
+  }, [username, user, fetchUserLikes, fetchUserReposts, fetchFollowStatus])
 
   useEffect(() => {
     if (username) {
@@ -275,6 +303,38 @@ export default function ProfilePage() {
     }
   }
 
+  // 转发或取消转发
+  const handleRepost = async (postId: string, newRepostCount: number) => {
+    // 乐观更新：立即更新 repost_count
+    setData((prevData) => {
+      if (!prevData) return prevData
+      return {
+        ...prevData,
+        posts: prevData.posts.map((post) => {
+          // 如果是原动态，直接更新
+          if (post.id === postId) {
+            return { ...post, repost_count: newRepostCount }
+          }
+          // 如果是转发动态，且原动态 ID 匹配，也需要更新原动态的 repost_count
+          if (post.is_repost && post.original_post && post.original_post.id === postId) {
+            return {
+              ...post,
+              original_post: {
+                ...post.original_post,
+                repost_count: newRepostCount
+              }
+            }
+          }
+          return post
+        })
+      }
+    })
+
+    // 刷新转发状态
+    if (user?.id) {
+      await fetchUserReposts()
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -441,17 +501,30 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {data.posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onLike={handleToggleLike}
-                    onUnlike={handleToggleLike}
-                    onDelete={isOwnProfile ? handlePostDelete : undefined}
-                    isLiked={likedPostIds.has(post.id)}
-                    commentsCount={post.comments_count || 0}
-                  />
-                ))}
+                {data.posts.map((post) => {
+                  // 对于转发动态，检查原动态ID是否已转发
+                  const postIdToCheck = post.is_repost && post.original_post_id
+                    ? post.original_post_id
+                    : post.id
+
+                  return (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onLike={handleToggleLike}
+                      onUnlike={handleToggleLike}
+                      onDelete={isOwnProfile ? handlePostDelete : undefined}
+                      onRepost={handleRepost}
+                      isLiked={likedPostIds.has(post.id)}
+                      hasReposted={repostedPostIds.has(postIdToCheck)}
+                      commentsCount={
+                        post.is_repost && post.original_post
+                          ? post.original_post.comments_count || 0
+                          : post.comments_count || 0
+                      }
+                    />
+                  )
+                })}
               </div>
             )}
           </div>
