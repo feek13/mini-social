@@ -133,7 +133,7 @@ export default async function PostDetailPage({
   const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   let post = null
-  let comments = []
+  let comments: any[] = []
 
   try {
     // 获取帖子数据
