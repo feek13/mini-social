@@ -132,7 +132,7 @@ export async function GET(
       .single()
 
     if (postError || !postData) {
-      console.error('获取动态详情错误:', postError)
+      console.error('获取动态详情错误 - ID:', id, '错误:', postError)
       return NextResponse.json(
         { error: '动态不存在' },
         { status: 404 }
@@ -149,23 +149,6 @@ export async function GET(
     const post = {
       ...postData,
       user: userData
-    }
-
-    const error = null
-
-    if (error) {
-      console.error('获取动态详情错误:', error)
-      return NextResponse.json(
-        { error: '动态不存在' },
-        { status: 404 }
-      )
-    }
-
-    if (!post) {
-      return NextResponse.json(
-        { error: '动态不存在' },
-        { status: 404 }
-      )
     }
 
     // 如果是转发，获取原动态
