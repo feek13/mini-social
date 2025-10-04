@@ -153,7 +153,7 @@ export default async function CommentDetailPage({
       .order('created_at', { ascending: true })
 
     if (repliesData) {
-      replies = repliesData.map((reply: any) => ({
+      replies = repliesData.map((reply: Record<string, unknown>) => ({
         ...reply,
         user: reply.user
       })) as Comment[]

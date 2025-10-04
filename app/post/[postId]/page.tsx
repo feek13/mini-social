@@ -190,7 +190,7 @@ export default async function PostDetailPage({
       .order('created_at', { ascending: false })
 
     if (commentsData) {
-      comments = commentsData.map((comment: any) => ({
+      comments = commentsData.map((comment: Record<string, unknown>) => ({
         ...comment,
         user: comment.user
       }))
