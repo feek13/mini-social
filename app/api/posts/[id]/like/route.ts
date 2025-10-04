@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseClientWithAuth } from '@/lib/supabase-api'
-import { cookies } from 'next/headers'
+import { requireAuth } from '@/lib/auth'
+import { rateLimitByType } from '@/lib/rateLimit'
 
 // POST - 点赞或取消点赞
 export async function POST(
@@ -8,30 +9,22 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 从请求头获取 Authorization token
-    const authHeader = request.headers.get('authorization')
+    // 1. 认证检查
+    const auth = await requireAuth(request)
+    if (!auth.user) return auth.response!
 
-    if (!authHeader) {
+    const { user, accessToken } = auth
+
+    // 2. 速率限制检查（点赞使用 burst 限制，允许更频繁）
+    const rateLimit = rateLimitByType(user.id, 'burst')
+    if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: '请先登录' },
-        { status: 401 }
+        { error: '操作过于频繁，请稍后再试' },
+        { status: 429 }
       )
     }
 
-    const accessToken = authHeader.replace('Bearer ', '')
-    const supabase = getSupabaseClientWithAuth(accessToken)
-
-    // 验证用户登录
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: '请先登录' },
-        { status: 401 }
-      )
-    }
-
-    // 获取动态 ID
+    // 3. 获取动态 ID
     const { id: postId } = await params
 
     if (!postId) {
@@ -41,7 +34,10 @@ export async function POST(
       )
     }
 
-    // 检查动态是否存在
+    // 4. 使用带认证的客户端
+    const supabase = getSupabaseClientWithAuth(accessToken!)
+
+    // 5. 检查动态是否存在
     const { data: post, error: postError } = await supabase
       .from('posts')
       .select('id')

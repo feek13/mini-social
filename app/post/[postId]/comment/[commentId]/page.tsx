@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import CommentDetailClient from './CommentDetailClient'
 import { Comment, Post } from '@/types/database'
+import { createClient } from '@supabase/supabase-js'
 
 // 生成动态 metadata
 export async function generateMetadata({
@@ -12,21 +13,27 @@ export async function generateMetadata({
   try {
     const { postId, commentId } = await params
 
-    // 获取评论详情
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/comments/${commentId}/replies`, {
-      cache: 'no-store'
-    })
+    // 直接使用 Supabase 客户端获取数据
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    if (!response.ok) {
+    const { data: commentData, error } = await supabase
+      .from('comments')
+      .select('*, user:user_id(*)')
+      .eq('id', commentId)
+      .single()
+
+    if (error || !commentData) {
       return {
         title: '评论不存在 - MiniSocial',
       }
     }
 
-    const { comment } = await response.json()
+    const comment = {
+      ...commentData,
+      user: commentData.user
+    }
 
     const title = `${comment.user?.username || '用户'}: ${comment.content.substring(0, 100)}${comment.content.length > 100 ? '...' : ''} - MiniSocial`
     const description = comment.content.substring(0, 160)
@@ -62,44 +69,94 @@ export default async function CommentDetailPage({
 }) {
   const { postId, commentId } = await params
 
-  // 获取数据
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  // 直接使用 Supabase 客户端获取数据
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   let post: Post | null = null
   let comment: Comment | null = null
   let replies: Comment[] = []
 
   try {
-    // 获取动态详情
-    const postResponse = await fetch(`${baseUrl}/api/posts/${postId}`, {
-      cache: 'no-store'
-    })
+    // 获取帖子数据
+    const { data: postData, error: postError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', postId)
+      .single()
 
-    if (!postResponse.ok) {
+    if (postError || !postData) {
       notFound()
     }
 
-    const postData = await postResponse.json()
-    post = postData.post
+    // 获取用户信息
+    const { data: userData } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, avatar_template')
+      .eq('id', postData.user_id)
+      .single()
 
-    // 获取评论详情和回复列表
-    const commentResponse = await fetch(`${baseUrl}/api/comments/${commentId}/replies`, {
-      cache: 'no-store'
-    })
+    post = {
+      ...postData,
+      user: userData
+    } as Post
 
-    if (!commentResponse.ok) {
+    // 如果是转发，获取原动态
+    if (post.is_repost && post.original_post_id) {
+      const { data: originalPostData } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', post.original_post_id)
+        .single()
+
+      if (originalPostData) {
+        const { data: originalUserData } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, avatar_template')
+          .eq('id', originalPostData.user_id)
+          .single()
+
+        post.original_post = {
+          ...originalPostData,
+          user: originalUserData
+        }
+      }
+    }
+
+    // 获取评论详情
+    const { data: commentData, error: commentError } = await supabase
+      .from('comments')
+      .select('*, user:user_id(*)')
+      .eq('id', commentId)
+      .single()
+
+    if (commentError || !commentData) {
       notFound()
     }
 
-    const commentData = await commentResponse.json()
-    comment = commentData.comment
-    replies = commentData.replies || []
+    comment = {
+      ...commentData,
+      user: commentData.user
+    } as Comment
 
     // 验证评论属于该动态
-    if (!comment || comment.post_id !== postId) {
+    if (comment.post_id !== postId) {
       notFound()
+    }
+
+    // 获取回复列表
+    const { data: repliesData } = await supabase
+      .from('comments')
+      .select('*, user:user_id(*)')
+      .eq('parent_comment_id', commentId)
+      .order('created_at', { ascending: true })
+
+    if (repliesData) {
+      replies = repliesData.map((reply: any) => ({
+        ...reply,
+        user: reply.user
+      })) as Comment[]
     }
   } catch (error) {
     console.error('获取评论详情失败:', error)

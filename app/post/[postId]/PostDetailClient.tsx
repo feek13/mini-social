@@ -7,6 +7,7 @@ import PostDetailCard from '@/components/PostDetailCard'
 import CommentInput from '@/components/CommentInput'
 import PostCommentList from '@/components/PostCommentList'
 import { supabase } from '@/lib/supabase'
+import SwipeablePageTransition from '@/components/SwipeablePageTransition'
 
 interface PostDetailClientProps {
   post: Post
@@ -194,35 +195,37 @@ export default function PostDetailClient({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto bg-white min-h-screen">
-        {/* 动态详情卡片 */}
-        <PostDetailCard
-          post={post}
-          isLiked={isLiked}
-          hasReposted={hasReposted}
-          onLike={handleLike}
-          onUnlike={handleUnlike}
-          onRepost={handleRepost}
-        />
-
-        {/* 评论输入框 */}
-        <CommentInput onSubmit={handleSubmitComment} />
-
-        {/* 评论列表 */}
-        <div className="border-t border-gray-100">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">
-              评论 {comments.length > 0 ? `(${comments.length})` : ''}
-            </h2>
-          </div>
-          <PostCommentList
-            comments={comments}
-            postId={post.id}
-            loading={false}
+    <SwipeablePageTransition enableSwipeBack={true}>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-2xl mx-auto bg-white min-h-screen">
+          {/* 动态详情卡片 */}
+          <PostDetailCard
+            post={post}
+            isLiked={isLiked}
+            hasReposted={hasReposted}
+            onLike={handleLike}
+            onUnlike={handleUnlike}
+            onRepost={handleRepost}
           />
+
+          {/* 评论输入框 */}
+          <CommentInput onSubmit={handleSubmitComment} />
+
+          {/* 评论列表 */}
+          <div className="border-t border-gray-100">
+            <div className="p-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">
+                评论 {comments.length > 0 ? `(${comments.length})` : ''}
+              </h2>
+            </div>
+            <PostCommentList
+              comments={comments}
+              postId={post.id}
+              loading={false}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </SwipeablePageTransition>
   )
 }

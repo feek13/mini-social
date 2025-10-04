@@ -8,9 +8,11 @@ import { Post, Comment } from '@/types/database'
 import { useAuth } from '@/app/providers/AuthProvider'
 import Avatar from '@/components/Avatar'
 import CommentInput from '@/components/CommentInput'
+import Breadcrumb from '@/components/Breadcrumb'
 import { formatRelativeTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { renderText } from '@/lib/textParser'
+import SwipeablePageTransition from '@/components/SwipeablePageTransition'
 
 interface CommentDetailClientProps {
   post: Post
@@ -61,30 +63,24 @@ export default function CommentDetailClient({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto bg-white min-h-screen">
+    <SwipeablePageTransition enableSwipeBack={true}>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-2xl mx-auto bg-white min-h-screen">
         {/* 顶部导航 */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
-          <div className="flex items-center space-x-4 p-4">
+          <div className="p-4">
             <button
               onClick={() => router.back()}
-              className="p-2 hover:bg-gray-100 rounded-full transition"
+              className="p-2 hover:bg-gray-100 rounded-full transition mb-2"
             >
               <ChevronLeft className="w-5 h-5 text-gray-600" />
             </button>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">评论详情</h1>
-              <p className="text-xs text-gray-500">
-                <Link
-                  href={`/post/${post.id}`}
-                  className="hover:text-blue-500 transition"
-                >
-                  动态
-                </Link>
-                {' > '}
-                <span>评论</span>
-              </p>
-            </div>
+            <Breadcrumb
+              items={[
+                { label: '动态', href: `/post/${post.id}` },
+                { label: `@${comment.user?.username || '未知用户'} 的评论`, href: '' }
+              ]}
+            />
           </div>
         </div>
 
@@ -273,5 +269,6 @@ export default function CommentDetailClient({
         </div>
       </div>
     </div>
+    </SwipeablePageTransition>
   )
 }

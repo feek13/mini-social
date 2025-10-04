@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseClient, getSupabaseClientWithAuth } from '@/lib/supabase-api'
+import { extractHashtags, extractMentions } from '@/lib/textParser'
+import { requireAuth } from '@/lib/auth'
+import { PostSchema, validateData } from '@/lib/validation'
+import { rateLimitByType } from '@/lib/rateLimit'
+import { sanitizeText } from '@/lib/sanitize'
 
 // 配置路由段缓存
 export const dynamic = 'force-dynamic' // 禁用静态生成
@@ -138,89 +143,155 @@ export async function GET(_request: NextRequest) {
 // POST - 创建新动态
 export async function POST(request: NextRequest) {
   try {
-    // 从请求头获取 Authorization token
-    const authHeader = request.headers.get('authorization')
-    const accessToken = authHeader?.replace('Bearer ', '')
+    // 1. 认证检查
+    const auth = await requireAuth(request)
+    if (!auth.user) return auth.response!
 
-    if (!accessToken) {
+    const { user, accessToken } = auth
+
+    // 2. 速率限制检查
+    const rateLimit = rateLimitByType(user.id, 'normal')
+    if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: '请先登录' },
-        { status: 401 }
+        { error: '发布过于频繁，请稍后再试' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': new Date(rateLimit.resetAt).toISOString(),
+          }
+        }
       )
     }
 
-    // 使用带认证的客户端
-    const supabase = getSupabaseClientWithAuth(accessToken)
+    // 3. 获取并验证请求数据
+    const body = await request.json()
+    const { content, images, originalPostId } = body
 
-    // 验证用户登录 - 传入 token 以验证
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
-
-    if (authError || !user) {
-      console.error('Auth error:', authError)
-      return NextResponse.json(
-        { error: '请先登录' },
-        { status: 401 }
-      )
-    }
-
-    // 获取请求数据
-    const { content, images } = await request.json()
-
-    // 验证内容
-    if (!content || typeof content !== 'string') {
-      // 如果没有内容，检查是否有图片
-      if (!images || !Array.isArray(images) || images.length === 0) {
+    // 如果是引用转发
+    if (originalPostId) {
+      // 验证评论长度
+      if (content && content.length > 280) {
         return NextResponse.json(
-          { error: '请输入动态内容或上传图片' },
+          { error: '评论不能超过 280 个字符' },
           { status: 400 }
         )
       }
+
+      // 5. 使用带认证的客户端
+      const supabase = getSupabaseClientWithAuth(accessToken!)
+
+      // 检查原动态是否存在
+      const { data: originalPost, error: postError } = await supabase
+        .from('posts')
+        .select('id, user_id, is_repost')
+        .eq('id', originalPostId)
+        .single()
+
+      if (postError || !originalPost) {
+        return NextResponse.json(
+          { error: '原动态不存在' },
+          { status: 404 }
+        )
+      }
+
+      // 不能引用已经转发的动态
+      if (originalPost.is_repost) {
+        return NextResponse.json(
+          { error: '不能引用已转发的动态' },
+          { status: 400 }
+        )
+      }
+
+      // 检查是否已经转发过
+      const { data: existingRepost } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('original_post_id', originalPostId)
+        .eq('is_repost', true)
+        .maybeSingle()
+
+      if (existingRepost) {
+        return NextResponse.json(
+          { error: '您已经转发过该动态' },
+          { status: 409 }
+        )
+      }
+
+      // 创建引用转发
+      const trimmedContent = content ? sanitizeText(content.trim()) : ''
+      const { data: post, error: insertError } = await supabase
+        .from('posts')
+        .insert([
+          {
+            user_id: user.id,
+            content: '',
+            is_repost: true,
+            original_post_id: originalPostId,
+            repost_comment: trimmedContent || null,
+            images: [],
+            hot_score: 0,
+            likes_count: 0,
+            repost_count: 0,
+          },
+        ])
+        .select(`
+          *,
+          profiles!posts_user_id_fkey (
+            username,
+            avatar_url,
+            avatar_template
+          )
+        `)
+        .single()
+
+      if (insertError) {
+        console.error('创建引用转发错误:', insertError)
+        return NextResponse.json(
+          { error: '创建引用转发失败，请重试' },
+          { status: 500 }
+        )
+      }
+
+      const postWithUser = post ? {
+        ...post,
+        user: post.profiles,
+        profiles: undefined
+      } : null
+
+      return NextResponse.json(
+        { message: '引用发布成功', post: postWithUser },
+        { status: 201 }
+      )
     }
 
-    const trimmedContent = content?.trim() || ''
+    // 普通发布
+    const validation = validateData(PostSchema, body)
 
-    if (trimmedContent.length > 280) {
+    if (!validation.success) {
       return NextResponse.json(
-        { error: '动态内容不能超过 280 个字符' },
+        { error: validation.error },
         { status: 400 }
       )
     }
 
-    // 验证图片
-    if (images) {
-      if (!Array.isArray(images)) {
-        return NextResponse.json(
-          { error: '图片格式错误' },
-          { status: 400 }
-        )
-      }
+    const validatedData = validation.data
 
-      if (images.length > 9) {
-        return NextResponse.json(
-          { error: '最多上传 9 张图片' },
-          { status: 400 }
-        )
-      }
+    // 4. 清理用户输入
+    const trimmedContent = validatedData.content ? sanitizeText(validatedData.content.trim()) : ''
 
-      // 验证每个图片 URL
-      for (const img of images) {
-        if (typeof img !== 'string' || !img.startsWith('http')) {
-          return NextResponse.json(
-            { error: '图片 URL 格式错误' },
-            { status: 400 }
-          )
-        }
-      }
-    }
+    // 5. 使用带认证的客户端
+    const supabase = getSupabaseClientWithAuth(accessToken!)
 
-    // 插入新动态
+    // 6. 插入新动态
     const { data: post, error: insertError } = await supabase
       .from('posts')
       .insert([
         {
           user_id: user.id,
           content: trimmedContent,
-          images: images || null,
+          images: validatedData.images || null,
         },
       ])
       .select(`
@@ -239,6 +310,63 @@ export async function POST(request: NextRequest) {
         { error: '创建动态失败，请重试' },
         { status: 500 }
       )
+    }
+
+    // 处理话题标签
+    if (trimmedContent) {
+      const hashtags = extractHashtags(trimmedContent)
+
+      for (const tag of hashtags) {
+        // 查找或创建话题
+        let { data: hashtag } = await supabase
+          .from('hashtags')
+          .select('id')
+          .eq('name', tag)
+          .single()
+
+        if (!hashtag) {
+          const { data: newHashtag } = await supabase
+            .from('hashtags')
+            .insert([{ name: tag }])
+            .select('id')
+            .single()
+
+          hashtag = newHashtag
+        }
+
+        // 创建动态-话题关联
+        if (hashtag) {
+          await supabase
+            .from('post_hashtags')
+            .insert([{
+              post_id: post.id,
+              hashtag_id: hashtag.id
+            }])
+        }
+      }
+
+      // 处理 @ 提及
+      const mentions = extractMentions(trimmedContent)
+
+      for (const username of mentions) {
+        // 查找被提及的用户
+        const { data: mentionedUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', username)
+          .single()
+
+        // 如果用户存在，创建提及记录
+        if (mentionedUser) {
+          await supabase
+            .from('mentions')
+            .insert([{
+              post_id: post.id,
+              mentioned_user_id: mentionedUser.id,
+              mentioner_user_id: user.id
+            }])
+        }
+      }
     }
 
     // 重命名 profiles 为 user 以匹配前端期望

@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import PostDetailClient from './PostDetailClient'
 import { Comment } from '@/types/database'
+import { createClient } from '@supabase/supabase-js'
 
 // 生成动态 metadata
 export async function generateMetadata({
@@ -12,21 +13,57 @@ export async function generateMetadata({
   try {
     const { postId } = await params
 
-    // 获取动态详情
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/posts/${postId}`, {
-      cache: 'no-store'
-    })
+    // 直接使用 Supabase 客户端获取数据
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    if (!response.ok) {
+    // 获取帖子数据
+    const { data: postData, error: postError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', postId)
+      .single()
+
+    if (postError || !postData) {
       return {
         title: '动态不存在 - MiniSocial',
       }
     }
 
-    const { post } = await response.json()
+    // 获取用户信息
+    const { data: userData } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, avatar_template')
+      .eq('id', postData.user_id)
+      .single()
+
+    const post = {
+      ...postData,
+      user: userData
+    }
+
+    // 如果是转发，获取原动态
+    if (post.is_repost && post.original_post_id) {
+      const { data: originalPostData } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', post.original_post_id)
+        .single()
+
+      if (originalPostData) {
+        const { data: originalUserData } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, avatar_template')
+          .eq('id', originalPostData.user_id)
+          .single()
+
+        post.original_post = {
+          ...originalPostData,
+          user: originalUserData
+        }
+      }
+    }
 
     // 如果是转发，使用原帖内容；否则使用当前帖子内容
     let displayContent = post.content || ''
@@ -90,35 +127,73 @@ export default async function PostDetailPage({
 }) {
   const { postId } = await params
 
-  // 获取动态详情
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  // 直接使用 Supabase 客户端获取数据
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   let post = null
   let comments = []
 
   try {
-    const postResponse = await fetch(`${baseUrl}/api/posts/${postId}`, {
-      cache: 'no-store'
-    })
+    // 获取帖子数据
+    const { data: postData, error: postError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', postId)
+      .single()
 
-    if (!postResponse.ok) {
+    if (postError || !postData) {
       notFound()
     }
 
-    const postData = await postResponse.json()
-    post = postData.post
+    // 获取用户信息
+    const { data: userData } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, avatar_template')
+      .eq('id', postData.user_id)
+      .single()
+
+    post = {
+      ...postData,
+      user: userData
+    }
+
+    // 如果是转发，获取原动态
+    if (post.is_repost && post.original_post_id) {
+      const { data: originalPostData } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', post.original_post_id)
+        .single()
+
+      if (originalPostData) {
+        const { data: originalUserData } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, avatar_template')
+          .eq('id', originalPostData.user_id)
+          .single()
+
+        post.original_post = {
+          ...originalPostData,
+          user: originalUserData
+        }
+      }
+    }
 
     // 获取评论列表（只获取一级评论）
-    const commentsResponse = await fetch(`${baseUrl}/api/posts/${postId}/comments`, {
-      cache: 'no-store'
-    })
+    const { data: commentsData } = await supabase
+      .from('comments')
+      .select('*, user:user_id(*)')
+      .eq('post_id', postId)
+      .is('parent_comment_id', null)
+      .order('created_at', { ascending: false })
 
-    if (commentsResponse.ok) {
-      const commentsData = await commentsResponse.json()
-      // 只保留一级评论（parent_comment_id 为 null）
-      comments = (commentsData.comments || []).filter((comment: Comment) => !comment.parent_comment_id)
+    if (commentsData) {
+      comments = commentsData.map((comment: any) => ({
+        ...comment,
+        user: comment.user
+      }))
     }
   } catch (error) {
     console.error('获取动态详情失败:', error)

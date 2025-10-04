@@ -4,9 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import Navbar from '@/components/Navbar'
 import PostForm from '@/components/PostForm'
 import PostCard from '@/components/PostCard'
+import FloatingPostButton from '@/components/FloatingPostButton'
+import PostDialog from '@/components/PostDialog'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Post } from '@/types/database'
 import { supabase } from '@/lib/supabase'
+import SwipeablePageTransition from '@/components/SwipeablePageTransition'
 
 export default function Home() {
   const { user } = useAuth()
@@ -16,6 +19,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [likingPostId, setLikingPostId] = useState<string | null>(null)
+  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false)
 
   // 获取用户点赞的动态列表
   const fetchUserLikes = useCallback(async (): Promise<Set<string>> => {
@@ -115,7 +119,7 @@ export default function Home() {
   }, [user?.id])
 
   // 发布新动态
-  const handlePostSubmit = async (content: string, imageUrls?: string[]) => {
+  const handlePostSubmit = async (content: string, imageUrls?: string[], originalPostId?: string) => {
     try {
       // 获取当前会话的 access token
       const { data: { session } } = await supabase.auth.getSession()
@@ -127,7 +131,11 @@ export default function Home() {
           'Content-Type': 'application/json',
           ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
         },
-        body: JSON.stringify({ content, images: imageUrls }),
+        body: JSON.stringify({
+          content,
+          images: imageUrls,
+          originalPostId,
+        }),
       })
 
       const data = await response.json()
@@ -333,38 +341,25 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 导航栏 */}
-      <Navbar />
+    <SwipeablePageTransition enableSwipeBack={false}>
+      <div className="min-h-screen bg-gray-50">
+        {/* 导航栏 */}
+        <Navbar />
+
+      {/* 浮动发布按钮（仅登录用户显示）*/}
+      {user && (
+        <FloatingPostButton onClick={() => setIsPostDialogOpen(true)} />
+      )}
+
+      {/* 发布对话框 */}
+      <PostDialog
+        isOpen={isPostDialogOpen}
+        onClose={() => setIsPostDialogOpen(false)}
+        onSubmit={handlePostSubmit}
+      />
 
       {/* 主内容 */}
       <main className="max-w-2xl mx-auto px-4 py-6">
-        {/* 未登录横幅 */}
-        {!user && (
-          <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white animate-fade-in">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h2 className="text-xl font-bold mb-2">欢迎来到 Mini Social</h2>
-                <p className="text-blue-50 text-sm">登录后即可发布动态、点赞评论，与好友互动</p>
-              </div>
-              <div className="flex space-x-3 ml-4">
-                <a
-                  href="/signup"
-                  className="px-5 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors text-sm whitespace-nowrap"
-                >
-                  注册
-                </a>
-                <a
-                  href="/login"
-                  className="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors border-2 border-white text-sm whitespace-nowrap"
-                >
-                  登录
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* 发布框（仅登录用户可见） */}
         {user && (
           <div className="mb-6">
@@ -528,5 +523,6 @@ export default function Home() {
         )}
       </main>
     </div>
+    </SwipeablePageTransition>
   )
 }

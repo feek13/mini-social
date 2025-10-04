@@ -6,14 +6,17 @@ import Image from 'next/image'
 import { useAuth } from '@/app/providers/AuthProvider'
 import Avatar from '@/components/Avatar'
 import { uploadImage, validateImageFile } from '@/lib/uploadImage'
+import { Post } from '@/types/database'
+import { formatRelativeTime } from '@/lib/utils'
 
 interface PostFormProps {
-  onSubmit: (content: string, imageUrls?: string[]) => Promise<void>
+  onSubmit: (content: string, imageUrls?: string[], originalPostId?: string) => Promise<void>
   placeholder?: string
 }
 
 const MAX_CHARACTERS = 280
 const MAX_IMAGES = 9
+const POST_LINK_REGEX = /(?:https?:\/\/[^\s/]+)?\/post\/([a-f0-9-]+)/i
 
 export default function PostForm({
   onSubmit,
@@ -32,8 +35,12 @@ export default function PostForm({
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 引用动态相关状态
+  const [quotedPost, setQuotedPost] = useState<Post | null>(null)
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+
   const remainingChars = MAX_CHARACTERS - content.length
-  const isValid = (content.trim().length > 0 || selectedImages.length > 0) && remainingChars >= 0
+  const isValid = (content.trim().length > 0 || selectedImages.length > 0 || quotedPost) && remainingChars >= 0
 
   // 清理函数：组件卸载时重置拖拽状态
   useEffect(() => {
@@ -42,6 +49,40 @@ export default function PostForm({
       setIsDragging(false)
     }
   }, [])
+
+  // 检测链接并加载引用动态
+  useEffect(() => {
+    const checkForPostLink = async () => {
+      const match = content.match(POST_LINK_REGEX)
+
+      if (match) {
+        const postId = match[1]
+
+        // 获取原动态数据
+        setIsLoadingQuote(true)
+        try {
+          const response = await fetch(`/api/posts/${postId}`)
+          if (response.ok) {
+            const data = await response.json()
+            setQuotedPost(data.post)
+          } else {
+            setQuotedPost(null)
+          }
+        } catch (error) {
+          console.error('获取动态失败:', error)
+          setQuotedPost(null)
+        } finally {
+          setIsLoadingQuote(false)
+        }
+      } else {
+        setQuotedPost(null)
+      }
+    }
+
+    // 防抖
+    const timeoutId = setTimeout(checkForPostLink, 500)
+    return () => clearTimeout(timeoutId)
+  }, [content])
 
   // 处理图片选择
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,13 +298,24 @@ export default function PostForm({
         imageUrls = await Promise.all(uploadPromises)
       }
 
+      // 如果有引用动态，从内容中移除链接
+      let finalContent = content.trim()
+      if (quotedPost) {
+        finalContent = finalContent.replace(POST_LINK_REGEX, '').trim()
+      }
+
       // 提交动态
-      await onSubmit(content.trim(), imageUrls.length > 0 ? imageUrls : undefined)
+      await onSubmit(
+        finalContent,
+        imageUrls.length > 0 ? imageUrls : undefined,
+        quotedPost?.id
+      )
 
       // 清空状态
       setContent('')
       setSelectedImages([])
       setImagePreviewUrls([])
+      setQuotedPost(null)
       setIsFocused(false)
 
       // 清理预览 URL
@@ -354,6 +406,52 @@ export default function PostForm({
                 </div>
               )}
             </div>
+
+            {/* 引用预览 */}
+            {quotedPost && (
+              <div className="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-500 font-medium">引用动态：</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 移除链接
+                      setContent(content.replace(POST_LINK_REGEX, '').trim())
+                      setQuotedPost(null)
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 原动态预览（缩小版）*/}
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Avatar
+                      username={quotedPost.user?.username}
+                      avatarUrl={quotedPost.user?.avatar_url}
+                      avatarTemplate={quotedPost.user?.avatar_template}
+                      size="sm"
+                    />
+                    <span className="font-semibold">{quotedPost.user?.username || '未知用户'}</span>
+                    <span className="text-gray-400 text-xs">·</span>
+                    <span className="text-gray-500 text-xs" suppressHydrationWarning>
+                      {formatRelativeTime(quotedPost.created_at)}
+                    </span>
+                  </div>
+                  <p className="text-gray-700 line-clamp-3 mt-2">{quotedPost.content}</p>
+                </div>
+              </div>
+            )}
+
+            {/* 加载引用提示 */}
+            {isLoadingQuote && (
+              <div className="mt-3 text-sm text-gray-500 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                正在加载引用的动态...
+              </div>
+            )}
 
             {/* 图片预览网格 */}
             {imagePreviewUrls.length > 0 && (
@@ -471,6 +569,11 @@ export default function PostForm({
               <button
                 type="submit"
                 disabled={!isValid || loading || uploadingImages}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }}
                 className={`px-5 py-2 rounded-full font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
                   !isValid || loading || uploadingImages
                     ? 'bg-blue-300 text-white cursor-not-allowed'

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClientWithAuth } from '@/lib/supabase-api'
+import { requireAuth } from '@/lib/auth'
+import { rateLimitByType } from '@/lib/rateLimit'
 
 // DELETE - 删除评论
 export async function DELETE(
@@ -7,31 +9,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    // 1. 认证检查
+    const auth = await requireAuth(request)
+    if (!auth.user) return auth.response!
 
-    // 从请求头获取 Authorization token
-    const authHeader = request.headers.get('authorization')
+    const { user, accessToken } = auth
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: authHeader ? {
-          Authorization: authHeader,
-        } : {},
-      },
-    })
-
-    // 验证用户登录
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader?.replace('Bearer ', ''))
-
-    if (authError || !user) {
+    // 2. 速率限制检查
+    const rateLimit = rateLimitByType(user.id, 'normal')
+    if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: '请先登录' },
-        { status: 401 }
+        { error: '操作过于频繁，请稍后再试' },
+        { status: 429 }
       )
     }
 
-    // 获取评论 ID
+    // 3. 获取评论 ID
     const { id } = await params
 
     if (!id) {
@@ -41,7 +34,10 @@ export async function DELETE(
       )
     }
 
-    // 先查询评论是否存在，并验证所有权
+    // 4. 使用带认证的客户端
+    const supabase = getSupabaseClientWithAuth(accessToken!)
+
+    // 5. 查询评论是否存在，并验证所有权
     const { data: comment, error: fetchError } = await supabase
       .from('comments')
       .select('user_id')

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, memo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Heart, MessageCircle, Trash2, Send, Repeat2, Link as LinkIcon } from 'lucide-react'
@@ -67,8 +68,26 @@ const PostCard = memo(function PostCard({
   const [repostError, setRepostError] = useState('')
   const [isReposting, setIsReposting] = useState(false)
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const repostMenuRef = useRef<HTMLDivElement>(null)
   const isOwner = user?.id === post.user_id
+
+  // 确保在客户端环境
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // 登录框显示时禁用页面滚动
+  useEffect(() => {
+    if (showLoginPrompt) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [showLoginPrompt])
 
   // 获取原帖的作者 ID（如果是转发，取原帖作者；否则取当前帖子作者）
   const originalAuthorId = post.is_repost && post.original_post
@@ -396,7 +415,7 @@ const PostCard = memo(function PostCard({
   return (
     <div
       onClick={handleCardClick}
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-md hover:border-gray-200 transition-all animate-fade-in-up hover-lift cursor-pointer"
+      className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-md hover:border-gray-200 transition-all animate-fade-in-up cursor-pointer ${!showLoginPrompt ? 'hover-lift' : ''}`}
     >
       {/* 转发提示（如果是转发） */}
       {post.is_repost && (
@@ -742,7 +761,8 @@ const PostCard = memo(function PostCard({
 
         {/* 评论按钮 */}
         <button
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation()
             if (!user) {
               setShowLoginPrompt(true)
             } else {
@@ -944,14 +964,14 @@ const PostCard = memo(function PostCard({
         onRepost={handleRepost}
       />
 
-      {/* 登录提示对话框 */}
-      {showLoginPrompt && (
+      {/* 登录提示对话框 - 使用 Portal 渲染到 body */}
+      {isMounted && showLoginPrompt && createPortal(
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] animate-fade-in"
           onClick={() => setShowLoginPrompt(false)}
         >
           <div
-            className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-scale-in"
+            className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-scale-in relative z-[10000]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
@@ -986,7 +1006,8 @@ const PostCard = memo(function PostCard({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

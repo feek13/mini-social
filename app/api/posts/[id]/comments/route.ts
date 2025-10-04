@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseClient } from '@/lib/supabase-api' // import { createClient } from '@supabase/supabase-js'
+import { extractMentions } from '@/lib/textParser'
 
 // GET - 获取动态的评论列表
 export async function GET(
@@ -163,6 +164,29 @@ export async function POST(
         { error: '创建评论失败，请重试' },
         { status: 500 }
       )
+    }
+
+    // 处理 @ 提及
+    const mentions = extractMentions(trimmedContent)
+
+    for (const username of mentions) {
+      // 查找被提及的用户
+      const { data: mentionedUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', username)
+        .single()
+
+      // 如果用户存在，创建提及记录
+      if (mentionedUser) {
+        await supabase
+          .from('mentions')
+          .insert([{
+            comment_id: comment.id,
+            mentioned_user_id: mentionedUser.id,
+            mentioner_user_id: user.id
+          }])
+      }
     }
 
     return NextResponse.json(

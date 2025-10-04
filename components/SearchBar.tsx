@@ -183,6 +183,7 @@ export default function SearchBar() {
           onFocus={() => setIsOpen(true)}
           placeholder="搜索用户或动态..."
           className="w-full px-4 py-2 pl-10 pr-10 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          suppressHydrationWarning
         />
         <Search
           className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"

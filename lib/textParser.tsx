@@ -77,8 +77,8 @@ export function renderText(text: string, disableLinks = false): React.ReactNode 
       return (
         <Link
           key={index}
-          href={`/search?q=${encodeURIComponent('#' + part.value)}`}
-          className="text-blue-500 hover:text-blue-600 hover:underline"
+          href={`/hashtag/${encodeURIComponent(part.value || '')}`}
+          className="text-blue-500 hover:text-blue-600 hover:underline font-semibold"
           onClick={(e) => e.stopPropagation()}
         >
           {part.content}
@@ -92,7 +92,7 @@ export function renderText(text: string, disableLinks = false): React.ReactNode 
         <Link
           key={index}
           href={`/profile/${part.value}`}
-          className="text-blue-500 hover:text-blue-600 hover:underline"
+          className="text-blue-500 hover:text-blue-600 hover:underline font-semibold"
           onClick={(e) => e.stopPropagation()}
         >
           {part.content}
