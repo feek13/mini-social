@@ -3,7 +3,7 @@
 import { useState, memo, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Heart, MessageCircle, Trash2, Send, Repeat2, MessageSquareQuote } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Send, Repeat2, Link as LinkIcon } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Post } from '@/types/database'
 import Avatar from '@/components/Avatar'
@@ -66,6 +66,7 @@ const PostCard = memo(function PostCard({
   const [repostSuccess, setRepostSuccess] = useState(false)
   const [repostError, setRepostError] = useState('')
   const [isReposting, setIsReposting] = useState(false)
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const repostMenuRef = useRef<HTMLDivElement>(null)
   const isOwner = user?.id === post.user_id
 
@@ -320,7 +321,7 @@ const PostCard = memo(function PostCard({
     await handleRepost()
   }
 
-  // 点击转发按钮
+  // 点击转发按钮 - 立即转发或取消
   const handleRepostClick = () => {
     if (!user) {
       alert('请先登录')
@@ -330,14 +331,32 @@ const PostCard = memo(function PostCard({
     if (hasReposted) {
       handleCancelRepost()
     } else {
-      setShowRepostMenu(!showRepostMenu)
+      // 直接转发（不弹窗）
+      handleDirectRepost()
     }
   }
 
-  // 打开引用转发对话框
-  const handleQuoteRepost = () => {
+  // 复制链接用于引用
+  const handleCopyLink = () => {
+    const postIdToShare = post.is_repost && post.original_post_id
+      ? post.original_post_id
+      : post.id
+
+    const link = `${window.location.origin}/post/${postIdToShare}`
+    navigator.clipboard.writeText(link)
+
+    // 显示成功提示
+    setRepostSuccess(true)
+    setTimeout(() => setRepostSuccess(false), 2000)
+
     setShowRepostMenu(false)
-    setShowRepostDialog(true)
+  }
+
+  // 右键点击转发按钮显示菜单
+  const handleRepostContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!user || !canRepost) return
+    setShowRepostMenu(true)
   }
 
   // 点击卡片进入详情页
@@ -443,14 +462,20 @@ const PostCard = memo(function PostCard({
           </div>
 
           {/* 原动态内容 */}
-          <Link
-            href={`/post/${post.original_post_id}`}
+          <div
+            onClick={(e) => {
+              // 如果点击的是链接，不要导航到动态详情页
+              if ((e.target as HTMLElement).closest('a')) {
+                return
+              }
+              router.push(`/post/${post.original_post_id}`)
+            }}
             className="block mb-3 cursor-pointer hover:bg-white -mx-2 px-2 py-1 transition rounded"
           >
             <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed">
               {renderText(post.original_post.content)}
             </p>
-          </Link>
+          </div>
 
           {/* 原动态图片（如果有） */}
           {post.original_post.images && post.original_post.images.length > 0 && (
@@ -531,14 +556,20 @@ const PostCard = memo(function PostCard({
           </div>
 
           {/* 内容 */}
-          <Link
-            href={`/post/${post.id}`}
+          <div
+            onClick={(e) => {
+              // 如果点击的是链接，不要导航到动态详情页
+              if ((e.target as HTMLElement).closest('a')) {
+                return
+              }
+              router.push(`/post/${post.id}`)
+            }}
             className="block mb-4 ml-0 sm:ml-[52px] cursor-pointer hover:bg-gray-50 -mx-4 px-4 py-2 transition rounded"
           >
             <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
               {renderText(post.content)}
             </p>
-          </Link>
+          </div>
         </>
       )}
 
@@ -710,19 +741,26 @@ const PostCard = memo(function PostCard({
         </button>
 
         {/* 评论按钮 */}
-        <Link
-          href={`/post/${post.id}`}
+        <button
+          onClick={() => {
+            if (!user) {
+              setShowLoginPrompt(true)
+            } else {
+              router.push(`/post/${post.id}`)
+            }
+          }}
           className="flex items-center space-x-2 transition-all group text-gray-500 hover:text-blue-500 active:scale-95"
-          title="查看评论"
+          title={user ? "查看评论" : "登录后查看评论"}
         >
           <MessageCircle className="w-5 h-5 transition-transform group-hover:scale-110" />
           <span className="text-sm font-medium tabular-nums">{post.comments_count || 0}</span>
-        </Link>
+        </button>
 
         {/* 转发按钮 */}
         <div className="relative" ref={repostMenuRef}>
           <button
             onClick={handleRepostClick}
+            onContextMenu={handleRepostContextMenu}
             disabled={!canRepost || isReposting}
             className={`flex items-center space-x-2 transition-all group ${
               hasReposted
@@ -731,9 +769,9 @@ const PostCard = memo(function PostCard({
             } ${!canRepost || isReposting ? 'cursor-not-allowed opacity-50' : 'active:scale-95'}`}
             title={
               !user ? '请先登录' :
-              hasReposted ? '取消转发' :
+              hasReposted ? '左键取消转发 | 右键复制链接' :
               user.id === originalAuthorId ? '不能转发自己的动态' :
-              '转发'
+              '左键转发 | 右键复制链接引用'
             }
           >
             <Repeat2
@@ -749,7 +787,7 @@ const PostCard = memo(function PostCard({
           {/* 转发成功提示 */}
           {repostSuccess && (
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-full shadow-lg z-50 animate-slide-up whitespace-nowrap">
-              转发成功 ✓
+              {hasReposted ? '链接已复制' : '已转发到你的主页'}
             </div>
           )}
 
@@ -760,22 +798,24 @@ const PostCard = memo(function PostCard({
             </div>
           )}
 
-          {/* 转发菜单 */}
-          {showRepostMenu && !hasReposted && (
+          {/* 右键菜单 */}
+          {showRepostMenu && (
             <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 min-w-[160px] z-50 animate-scale-in">
+              {!hasReposted && (
+                <button
+                  onClick={handleDirectRepost}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
+                >
+                  <Repeat2 className="w-4 h-4 text-green-500" />
+                  <span className="font-medium">转发</span>
+                </button>
+              )}
               <button
-                onClick={handleDirectRepost}
+                onClick={handleCopyLink}
                 className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
               >
-                <Repeat2 className="w-4 h-4 text-green-500" />
-                <span className="font-medium">转发</span>
-              </button>
-              <button
-                onClick={handleQuoteRepost}
-                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
-              >
-                <MessageSquareQuote className="w-4 h-4 text-blue-500" />
-                <span className="font-medium">引用</span>
+                <LinkIcon className="w-4 h-4 text-blue-500" />
+                <span className="font-medium">复制链接引用</span>
               </button>
             </div>
           )}
@@ -903,6 +943,51 @@ const PostCard = memo(function PostCard({
         onClose={() => setShowRepostDialog(false)}
         onRepost={handleRepost}
       />
+
+      {/* 登录提示对话框 */}
+      {showLoginPrompt && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"
+          onClick={() => setShowLoginPrompt(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-blue-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                登录后查看评论
+              </h3>
+              <p className="text-gray-600 mb-6">
+                加入 MiniSocial，发现更多精彩内容，与朋友互动交流
+              </p>
+              <div className="flex flex-col space-y-3">
+                <Link
+                  href="/login"
+                  className="w-full px-6 py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600 transition-colors active:scale-95"
+                >
+                  登录
+                </Link>
+                <Link
+                  href="/signup"
+                  className="w-full px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-full hover:bg-gray-200 transition-colors active:scale-95"
+                >
+                  注册新账号
+                </Link>
+                <button
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors text-sm"
+                >
+                  稍后再说
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 })
