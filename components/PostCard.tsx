@@ -10,6 +10,7 @@ import { Post } from '@/types/database'
 import Avatar from '@/components/Avatar'
 import ImageViewer from '@/components/ImageViewer'
 import RepostDialog from '@/components/RepostDialog'
+import DeleteConfirmDialog from '@/components/DeleteConfirmDialog'
 import { formatRelativeTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { renderText } from '@/lib/textParser'
@@ -51,6 +52,9 @@ const PostCard = memo(function PostCard({
   const router = useRouter()
   const { user, profile } = useAuth()
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDeleteCommentDialog, setShowDeleteCommentDialog] = useState(false)
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
   const [likeAnimating, setLikeAnimating] = useState(false)
   const [commentAnimating, setCommentAnimating] = useState(false)
   const [showComments, setShowComments] = useState(false)
@@ -111,12 +115,17 @@ const PostCard = memo(function PostCard({
     }
   }, [showRepostMenu])
 
-  const handleDelete = async () => {
-    if (!onDelete || !confirm('确定要删除这条动态吗？')) return
+  const handleDeleteClick = () => {
+    setShowDeleteDialog(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!onDelete) return
 
     setIsDeleting(true)
     try {
       await onDelete(post.id)
+      setShowDeleteDialog(false)
     } catch (error) {
       console.error('删除失败:', error)
     } finally {
@@ -195,25 +204,29 @@ const PostCard = memo(function PostCard({
         setCommentsCount(commentsCount + 1)
         setCommentContent('')
       } else {
-        alert(data.error || '评论失败')
+        console.error('评论失败:', data.error)
       }
     } catch (error) {
       console.error('评论失败:', error)
-      alert('评论失败，请重试')
     } finally {
       setSubmittingComment(false)
     }
   }
 
   // 删除评论
-  const handleDeleteComment = async (commentId: string) => {
-    if (!confirm('确定要删除这条评论吗？')) return
+  const handleDeleteCommentClick = (commentId: string) => {
+    setDeletingCommentId(commentId)
+    setShowDeleteCommentDialog(true)
+  }
+
+  const handleConfirmDeleteComment = async () => {
+    if (!deletingCommentId) return
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const accessToken = session?.access_token
 
-      const response = await fetch(`/api/comments/${commentId}`, {
+      const response = await fetch(`/api/comments/${deletingCommentId}`, {
         method: 'DELETE',
         headers: {
           ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
@@ -221,22 +234,27 @@ const PostCard = memo(function PostCard({
       })
 
       if (response.ok) {
-        setComments(comments.filter(c => c.id !== commentId))
+        setComments(comments.filter(c => c.id !== deletingCommentId))
         setCommentsCount(Math.max(0, commentsCount - 1))
+        setShowDeleteCommentDialog(false)
+        setDeletingCommentId(null)
       } else {
         const data = await response.json()
-        alert(data.error || '删除失败')
+        console.error('删除失败:', data.error)
+        setShowDeleteCommentDialog(false)
+        setDeletingCommentId(null)
       }
     } catch (error) {
       console.error('删除评论失败:', error)
-      alert('删除失败，请重试')
+      setShowDeleteCommentDialog(false)
+      setDeletingCommentId(null)
     }
   }
 
   // 转发处理
   const handleRepost = async (comment?: string) => {
     if (!user) {
-      alert('请先登录')
+      setShowLoginPrompt(true)
       return
     }
 
@@ -332,7 +350,7 @@ const PostCard = memo(function PostCard({
   // 直接转发（无评论）
   const handleDirectRepost = async () => {
     if (!user) {
-      alert('请先登录')
+      setShowLoginPrompt(true)
       return
     }
 
@@ -343,7 +361,7 @@ const PostCard = memo(function PostCard({
   // 点击转发按钮 - 立即转发或取消
   const handleRepostClick = () => {
     if (!user) {
-      alert('请先登录')
+      setShowLoginPrompt(true)
       return
     }
 
@@ -564,7 +582,7 @@ const PostCard = memo(function PostCard({
             {/* 删除按钮（仅所有者可见） */}
             {isOwner && onDelete && (
               <button
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 disabled={isDeleting}
                 className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all p-2 rounded-full active:scale-95 flex-shrink-0"
                 title="删除动态"
@@ -928,7 +946,7 @@ const PostCard = memo(function PostCard({
                       </span>
                       {user?.id === comment.user_id && (
                         <button
-                          onClick={() => handleDeleteComment(comment.id)}
+                          onClick={() => handleDeleteCommentClick(comment.id)}
                           className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition ml-auto"
                           title="删除评论"
                         >
@@ -962,6 +980,27 @@ const PostCard = memo(function PostCard({
         isOpen={showRepostDialog}
         onClose={() => setShowRepostDialog(false)}
         onRepost={handleRepost}
+      />
+
+      {/* 删除动态确认对话框 */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
+
+      {/* 删除评论确认对话框 */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteCommentDialog}
+        onClose={() => {
+          setShowDeleteCommentDialog(false)
+          setDeletingCommentId(null)
+        }}
+        onConfirm={handleConfirmDeleteComment}
+        title="删除评论"
+        message="确定要删除这条评论吗？删除后无法恢复。"
+        isDeleting={false}
       />
 
       {/* 登录提示对话框 - 使用 Portal 渲染到 body */}

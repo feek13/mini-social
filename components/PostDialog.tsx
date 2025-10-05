@@ -347,24 +347,26 @@ export default function PostDialog({ isOpen, onClose, onSubmit }: PostDialogProp
                   {imagePreviewUrls.map((url, index) => (
                     <div
                       key={index}
-                      className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group"
+                      className="relative aspect-square rounded-lg overflow-visible border border-gray-200"
                     >
-                      <Image
-                        src={url}
-                        alt={`预览 ${index + 1}`}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
+                      <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none z-0">
+                        <Image
+                          src={url}
+                          alt={`预览 ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(index)}
                         disabled={loading}
-                        className="absolute top-1 left-1 p-1.5 bg-red-500 text-white rounded-full
-                                   md:opacity-0 md:group-hover:opacity-100
-                                   transition-all hover:bg-red-600 active:scale-95
+                        className="absolute -top-2 -left-2 p-1.5 bg-red-500 text-white rounded-full
                                    shadow-lg disabled:opacity-50 disabled:cursor-not-allowed
-                                   z-10"
+                                   z-50 hover:bg-red-600 active:scale-95
+                                   transition-colors pointer-events-auto"
+                        style={{ pointerEvents: 'auto' }}
                         aria-label="删除图片"
                       >
                         <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
