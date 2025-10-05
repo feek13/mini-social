@@ -39,14 +39,16 @@ export default function FloatingPostButton({ onClick }: FloatingPostButtonProps)
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-6 left-6 z-40
+      className="fixed bottom-6 left-6 z-[60]
                  w-14 h-14 rounded-full
                  bg-gradient-to-r from-blue-500 to-blue-600
                  text-white shadow-lg
                  hover:scale-110 hover:shadow-xl
                  transition-all duration-200
                  flex items-center justify-center
-                 animate-fade-in-up group"
+                 animate-fade-in-up group
+                 touch-manipulation"
+      style={{ touchAction: 'manipulation' }}
       aria-label="发布动态"
     >
       <Feather className="w-6 h-6" />

@@ -360,9 +360,14 @@ export default function PostDialog({ isOpen, onClose, onSubmit }: PostDialogProp
                         type="button"
                         onClick={() => handleRemoveImage(index)}
                         disabled={loading}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 active:scale-95"
+                        className="absolute top-1 left-1 p-1.5 bg-red-500 text-white rounded-full
+                                   md:opacity-0 md:group-hover:opacity-100
+                                   transition-all hover:bg-red-600 active:scale-95
+                                   shadow-lg disabled:opacity-50 disabled:cursor-not-allowed
+                                   z-10"
+                        aria-label="删除图片"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
                       </button>
                     </div>
                   ))}
