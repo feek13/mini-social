@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { defillama } from '@/lib/defillama'
 
 /**
@@ -8,7 +8,7 @@ import { defillama } from '@/lib/defillama'
  *
  * @returns {Chain[]} 区块链列表
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const chains = await defillama.getChains()
 

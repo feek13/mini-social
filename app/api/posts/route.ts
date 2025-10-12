@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic' // 禁用静态生成
 export const revalidate = 10 // 10秒重新验证缓存
 
 // GET - 获取所有动态列表
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const supabase = getSupabaseClient()
 
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     // 3. 获取并验证请求数据
     const body = await request.json()
-    const { content, images, originalPostId, defiEmbeds } = body
+    const { content, originalPostId, defiEmbeds } = body
 
     // 如果是引用转发
     if (originalPostId) {

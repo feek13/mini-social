@@ -41,7 +41,15 @@ export default function TVLChart({
     })
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  interface TooltipProps {
+    active?: boolean
+    payload?: Array<{
+      payload: ChartDataPoint
+      value: number
+    }>
+  }
+
+  const CustomTooltip = ({ active, payload }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
@@ -66,7 +74,7 @@ export default function TVLChart({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-5 h-5 text-blue-500" />
-        <h3 className="text-lg font-semibold text-gray-900">{name} TVL ‹¿</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{name} TVL ï¿½ï¿½</h3>
       </div>
 
       <ResponsiveContainer width="100%" height={height}>

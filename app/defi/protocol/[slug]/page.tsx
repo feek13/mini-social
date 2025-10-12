@@ -6,15 +6,12 @@ import Image from 'next/image'
 import Navbar from '@/components/Navbar'
 import TVLHistoryChart from '@/components/defi/charts/TVLHistoryChart'
 import MetricCard from '@/components/defi/MetricCard'
-import YieldCard from '@/components/defi/YieldCard'
 import {
   ArrowLeft,
-  ExternalLink,
   TrendingUp,
   DollarSign,
   BarChart3,
   Users,
-  Activity,
   Zap,
   Loader2,
   AlertCircle,
@@ -24,7 +21,6 @@ import {
   Code,
   Shield
 } from 'lucide-react'
-import { formatTVL, formatChange, getChangeColor } from '@/lib/utils'
 import { ProtocolDetail } from '@/lib/defillama/types'
 
 interface PageProps {
@@ -67,11 +63,12 @@ export default function ProtocolDetailPage({ params }: PageProps) {
   }, [slug])
 
   // 转换历史数据
+  type TVLItem = number | { date?: number; totalLiquidityUSD?: number }
   const chartData = protocol?.tvl
-    ? protocol.tvl.map((item: any, index: number) => ({
-        date: item.date || index,
-        tvl: typeof item === 'number' ? item : (item.totalLiquidityUSD || 0),
-        timestamp: item.date || Date.now() / 1000 - (protocol.tvl.length - index) * 86400
+    ? protocol.tvl.map((item: TVLItem, index: number) => ({
+        date: typeof item === 'object' && item.date ? item.date : index,
+        tvl: typeof item === 'number' ? item : (typeof item === 'object' && item.totalLiquidityUSD ? item.totalLiquidityUSD : 0),
+        timestamp: (typeof item === 'object' && item.date) ? item.date : Date.now() / 1000 - (protocol.tvl.length - index) * 86400
       }))
     : []
 
@@ -273,7 +270,6 @@ export default function ProtocolDetailPage({ params }: PageProps) {
             {chartData.length > 0 && (
               <TVLHistoryChart
                 data={chartData}
-                name={protocol.name}
                 height={400}
               />
             )}

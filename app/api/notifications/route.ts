@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseClientWithAuth } from '@/lib/supabase-api'
-import type { Notification, NotificationType } from '@/types/database'
+import type { NotificationType } from '@/types/database'
 
 // GET - 获取通知列表
 export async function GET(request: NextRequest) {

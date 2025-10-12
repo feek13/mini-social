@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, Filter, TrendingUp, DollarSign, BarChart3, X, AlertCircle, Zap, Shield, Coins, Copy, Check, Flame, Star, Rocket, Sparkles, ArrowUpDown, ChevronDown, ChevronUp, Activity, Wifi, WifiOff } from 'lucide-react'
+import { Search, Filter, TrendingUp, DollarSign, BarChart3, X, AlertCircle, Zap, Shield, Coins, Copy, Check, Flame, Star, Rocket, ArrowUpDown, ChevronDown, ChevronUp, Activity, Wifi, WifiOff } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import ProtocolCard from '@/components/defi/ProtocolCard'
 import YieldCard from '@/components/defi/YieldCard'
@@ -103,7 +103,6 @@ export default function DeFiPage() {
   const [copiedPrice, setCopiedPrice] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [autoRefresh, setAutoRefresh] = useState(false)
-  const [refreshInterval, setRefreshInterval] = useState(10) // 默认 10 秒
   const [nextRefreshIn, setNextRefreshIn] = useState(0)
   const [previousPrice, setPreviousPrice] = useState<number | null>(null)
   const [priceChange, setPriceChange] = useState<'up' | 'down' | null>(null)
@@ -112,9 +111,7 @@ export default function DeFiPage() {
   const [useRealtime, setUseRealtime] = useState(false) // 是否启用实时更新
   const [realtimePrice, setRealtimePrice] = useState<BinanceTicker | null>(null)
   const [wsConnected, setWsConnected] = useState(false)
-  const [realtimeSymbol, setRealtimeSymbol] = useState<string>('')
   const wsClientRef = useRef<BinanceWebSocketClient | null>(null)
-  const [isUSUser, setIsUSUser] = useState<boolean | null>(null) // null = 未检测, true = 美国, false = 非美国
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(false) // 是否已启用自动更新
 
   // 显示错误提示并自动消失
@@ -123,27 +120,6 @@ export default function DeFiPage() {
     setTimeout(() => setError(''), 3000)
   }
 
-  // 检测用户地区
-  const detectUserRegion = useCallback(async () => {
-    try {
-      // 使用免费的 IP 地理位置 API
-      const response = await fetch('https://ipapi.co/json/')
-      const data = await response.json()
-
-      const countryCode = data.country_code
-      const isUS = countryCode === 'US'
-
-      setIsUSUser(isUS)
-      console.log(`[地区检测] 用户地区: ${data.country_name} (${countryCode})`)
-      console.log(`[地区检测] ${isUS ? '✅ 美国用户 - 将使用实时 WebSocket' : '🌍 非美国用户 - 将使用定时刷新'}`)
-
-      return isUS
-    } catch (error) {
-      console.error('[地区检测] 检测失败，默认使用定时刷新:', error)
-      setIsUSUser(false) // 默认为非美国用户
-      return false
-    }
-  }, [])
 
   // 获取所有可用的链
   const fetchChains = useCallback(async () => {
@@ -329,7 +305,6 @@ export default function DeFiPage() {
     }
     setWsConnected(false)
     setRealtimePrice(null)
-    setRealtimeSymbol('')
   }, [])
 
   // 启动实时价格更新（Binance WebSocket）
@@ -347,7 +322,6 @@ export default function DeFiPage() {
 
     // 获取 Binance 交易对
     const binanceSymbol = getSymbolForToken(symbol)
-    setRealtimeSymbol(symbol)
 
     try {
       // 创建 WebSocket 客户端
@@ -397,8 +371,9 @@ export default function DeFiPage() {
       setUseRealtime(false)
       showError('实时更新启动失败: ' + (error instanceof Error ? error.message : '未知错误'))
     }
+  // stopRealtimeUpdates is intentionally excluded from deps as it's a stable ref
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showError, stopRealtimeUpdates])
+  }, [showError])
 
   // 启动定时刷新
   const startPollingUpdate = useCallback(() => {
@@ -431,7 +406,9 @@ export default function DeFiPage() {
       console.log(`[自动更新] 支持的代币: ${Object.keys(COMMON_SYMBOLS).join(', ')}`)
       startPollingUpdate()
     }
-  }, [startRealtimeUpdates, startPollingUpdate])
+  // startRealtimeUpdates and startPollingUpdate are stable callbacks
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 页面加载时获取链列表
   useEffect(() => {
@@ -587,11 +564,6 @@ export default function DeFiPage() {
       setSelectedProtocol('')
     }
     // 其他筛选逻辑可以根据需要扩展
-  }
-
-  // 加载更多协议
-  const loadMoreProtocols = () => {
-    setProtocolsLimit((prev) => prev + 20)
   }
 
   // 加载更多收益率
@@ -1114,7 +1086,7 @@ export default function DeFiPage() {
                 {protocols.length >= protocolsLimit && (
                   <div className="flex justify-center mt-6">
                     <button
-                      onClick={loadMoreProtocols}
+                      onClick={() => setProtocolsLimit((prev) => prev + 20)}
                       className="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-full hover:bg-gray-50 hover:border-gray-300 transition font-medium"
                     >
                       加载更多
