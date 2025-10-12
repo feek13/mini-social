@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState, useMemo, memo } from 'react'
-import dynamic from 'next/dynamic'
-import { useInView } from 'react-intersection-observer'
+import React, { useState, useMemo } from 'react'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Area,
+  AreaChart
+} from 'recharts'
 import { formatTVL } from '@/lib/utils'
 import { TrendingUp } from 'lucide-react'
-
-// 懒加载 Recharts 组件
-const AreaChart = dynamic(() => import('recharts').then(mod => ({ default: mod.AreaChart })), { ssr: false })
-const Area = dynamic(() => import('recharts').then(mod => ({ default: mod.Area })), { ssr: false })
-const XAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.XAxis })), { ssr: false })
-const YAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.YAxis })), { ssr: false })
-const CartesianGrid = dynamic(() => import('recharts').then(mod => ({ default: mod.CartesianGrid })), { ssr: false })
-const Tooltip = dynamic(() => import('recharts').then(mod => ({ default: mod.Tooltip })), { ssr: false })
-const ResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { ssr: false })
 
 interface ChartDataPoint {
   date: number
@@ -23,23 +23,20 @@ interface ChartDataPoint {
 
 interface TVLHistoryChartProps {
   data: ChartDataPoint[]
+  name: string
   height?: number
 }
 
 type TimeRange = '7d' | '30d' | '90d' | '180d' | '1y' | 'all'
 
-function TVLHistoryChart({
+export default function TVLHistoryChart({
   data,
+  name,
   height = 400
 }: TVLHistoryChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('all')
   const [showUSD, setShowUSD] = useState(true)
-  const { ref, inView } = useInView({
-    threshold: 0.1,
-    triggerOnce: true
-  })
 
-  // 根据时间范围过滤数据
   const filteredData = useMemo(() => {
     if (timeRange === 'all') return data
 
@@ -57,16 +54,6 @@ function TVLHistoryChart({
     return data.filter(d => d.timestamp >= cutoff)
   }, [data, timeRange])
 
-  // 数据采样优化（减少数据点）
-  const sampledData = useMemo(() => {
-    if (timeRange === 'all' && data.length > 365) {
-      // 超过365个数据点时，采样到365个点
-      const step = Math.ceil(data.length / 365)
-      return filteredData.filter((_, index) => index % step === 0)
-    }
-    return filteredData
-  }, [filteredData, timeRange, data.length])
-
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp * 1000)
 
@@ -78,32 +65,24 @@ function TVLHistoryChart({
     }
 
     return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
+      year: '2-digit',
       month: 'short'
     })
   }
 
-  interface TooltipProps {
-    active?: boolean
-    payload?: Array<{
-      payload: ChartDataPoint
-      value: number
-    }>
-  }
-
-  const CustomTooltip = ({ active, payload }: TooltipProps) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-gray-900 px-4 py-3 rounded-lg shadow-xl border border-gray-700">
-          <p className="text-xs text-gray-400 mb-1">
+        <div className="bg-gray-900 px-3 py-2 rounded-lg shadow-xl border border-gray-700 max-w-[200px]">
+          <p className="text-xs text-gray-400 mb-1 whitespace-nowrap">
             {new Date(data.timestamp * 1000).toLocaleDateString('zh-CN', {
               year: 'numeric',
               month: 'long',
               day: 'numeric'
             })}
           </p>
-          <p className="text-lg font-bold text-blue-400">
+          <p className="text-base font-bold text-blue-400 whitespace-nowrap">
             TVL: {formatTVL(data.tvl)}
           </p>
         </div>
@@ -121,34 +100,25 @@ function TVLHistoryChart({
     { value: 'all', label: 'All' }
   ]
 
-  // 只在可见时渲染图表
-  if (!inView) {
-    return (
-      <div ref={ref} className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-        <div style={{ height: `${height}px` }} className="flex items-center justify-center">
-          <div className="text-gray-500">加载图表中...</div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="bg-gray-900 rounded-xl shadow-lg border border-gray-800 p-6">
-      {/* 顶部：标题和控制器 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Total Value Locked</h3>
-        </div>
+    <div className="bg-gray-900 rounded-xl shadow-lg border border-gray-800 p-4 md:p-6 overflow-hidden">
+      {/* 顶部：标题 */}
+      <div className="flex items-center gap-2 mb-4">
+        <TrendingUp className="w-5 h-5 text-blue-400 flex-shrink-0" />
+        <h3 className="text-base md:text-lg font-semibold text-white truncate">
+          Total Value Locked
+        </h3>
+      </div>
 
-        {/* 时间范围选择器 */}
-        <div className="flex items-center gap-2">
-          <div className="flex bg-gray-800 rounded-lg p-1">
+      {/* 时间范围选择器 - 移动端可横向滚动 */}
+      <div className="mb-4 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
+          <div className="flex bg-gray-800 rounded-lg p-1 flex-shrink-0">
             {timeRanges.map(range => (
               <button
                 key={range.value}
                 onClick={() => setTimeRange(range.value)}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
                   timeRange === range.value
                     ? 'bg-blue-500 text-white shadow-sm'
                     : 'text-gray-400 hover:text-white'
@@ -162,7 +132,7 @@ function TVLHistoryChart({
           {/* USD 切换 */}
           <button
             onClick={() => setShowUSD(!showUSD)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all whitespace-nowrap flex-shrink-0 ${
               showUSD
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:text-white'
@@ -173,40 +143,54 @@ function TVLHistoryChart({
         </div>
       </div>
 
-      {/* 图表 */}
-      <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={sampledData}>
-          <defs>
-            <linearGradient id="tvlGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis
-            dataKey="timestamp"
-            tickFormatter={formatDate}
-            stroke="#6B7280"
-            style={{ fontSize: '12px' }}
-          />
-          <YAxis
-            tickFormatter={(value) => formatTVL(value)}
-            stroke="#6B7280"
-            style={{ fontSize: '12px' }}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Area
-            type="monotone"
-            dataKey="tvl"
-            stroke="#3B82F6"
-            strokeWidth={2}
-            fill="url(#tvlGradient)"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+      {/* 图表 - 移动端高度调整 */}
+      <div className="w-full -mx-2 md:mx-0" style={{ touchAction: 'pan-y' }}>
+        <ResponsiveContainer width="100%" height={height}>
+          <AreaChart
+            data={filteredData}
+            margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+          >
+            <defs>
+              <linearGradient id="tvlGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis
+              dataKey="timestamp"
+              tickFormatter={formatDate}
+              stroke="#6B7280"
+              style={{ fontSize: '10px' }}
+              tick={{ fontSize: 10 }}
+            />
+            <YAxis
+              tickFormatter={(value) => {
+                // 移动端简化显示
+                if (value >= 1000000000) {
+                  return `${(value / 1000000000).toFixed(1)}B`
+                }
+                if (value >= 1000000) {
+                  return `${(value / 1000000).toFixed(1)}M`
+                }
+                return formatTVL(value)
+              }}
+              stroke="#6B7280"
+              style={{ fontSize: '10px' }}
+              tick={{ fontSize: 10 }}
+              width={40}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="tvl"
+              stroke="#3B82F6"
+              strokeWidth={2}
+              fill="url(#tvlGradient)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
-
-// 使用 memo 避免不必要的重渲染
-export default memo(TVLHistoryChart)

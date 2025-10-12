@@ -16,7 +16,7 @@ interface DeFiEmbedPreviewProps {
 export default function DeFiEmbedPreview({ embed, onRemove, compact = true, showLatestDataButton = false }: DeFiEmbedPreviewProps) {
   if (embed.type === 'protocol') {
     const protocol = embed.snapshotData as Protocol
-    const protocolUrl = protocol.url || `https://defillama.com/protocol/${protocol.slug}`
+    const protocolUrl = protocol.url || `/defi/protocol/${protocol.slug}`
 
     return (
       <div
@@ -99,7 +99,7 @@ export default function DeFiEmbedPreview({ embed, onRemove, compact = true, show
 
           {showLatestDataButton && (
             <a
-              href={`https://defillama.com/protocol/${protocol.slug}`}
+              href={`/defi/protocol/${protocol.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-indigo-600 bg-white hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-300 rounded-lg transition-all"

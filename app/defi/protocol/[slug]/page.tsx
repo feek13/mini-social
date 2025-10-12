@@ -160,22 +160,23 @@ export default function ProtocolDetailPage({ params }: PageProps) {
     <div className="min-h-screen bg-black text-white">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 overflow-x-hidden">
         {/* 返回按钮 */}
         <Link
           href="/defi"
           className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"
         >
           <ArrowLeft className="w-4 h-4" />
-          返回协议列表
+          <span className="hidden sm:inline">返回协议列表</span>
+          <span className="sm:hidden">返回</span>
         </Link>
 
         {/* 协议头部信息 */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-start gap-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 md:p-6 mb-6 overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
+            <div className="flex items-start gap-3 md:gap-4 min-w-0 flex-1">
               {protocol.logo && (
-                <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-800 flex-shrink-0 ring-2 ring-gray-700">
+                <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden bg-gray-800 flex-shrink-0 ring-2 ring-gray-700">
                   <Image
                     src={protocol.logo}
                     alt={protocol.name}
@@ -187,21 +188,23 @@ export default function ProtocolDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-3xl font-bold text-white">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <h1 className="text-xl md:text-3xl font-bold text-white truncate">
                     {protocol.name}
                   </h1>
-                  <span className="text-gray-500">({protocol.symbol || 'N/A'})</span>
+                  <span className="text-gray-500 text-sm md:text-base flex-shrink-0">
+                    ({protocol.symbol || 'N/A'})
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-3 py-1 text-sm font-medium bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">
+                  <span className="px-2 md:px-3 py-0.5 md:py-1 text-xs md:text-sm font-medium bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">
                     {protocol.category}
                   </span>
 
                   {protocol.chains && protocol.chains.length > 0 && (
-                    <span className="text-sm text-gray-500">
+                    <span className="text-xs md:text-sm text-gray-500">
                       · {protocol.chains.length} chains
                     </span>
                   )}
@@ -209,8 +212,8 @@ export default function ProtocolDetailPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* 右侧链接 */}
-            <div className="flex items-center gap-2">
+            {/* 右侧链接 - 移动端堆叠 */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               {protocol.url && (
                 <a
                   href={protocol.url}
@@ -219,7 +222,7 @@ export default function ProtocolDetailPage({ params }: PageProps) {
                   className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 transition"
                   title="Website"
                 >
-                  <Globe className="w-5 h-5" />
+                  <Globe className="w-4 h-4 md:w-5 md:h-5" />
                 </a>
               )}
               {protocol.twitter && (
@@ -230,67 +233,67 @@ export default function ProtocolDetailPage({ params }: PageProps) {
                   className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 transition"
                   title="Twitter"
                 >
-                  <Twitter className="w-5 h-5" />
+                  <Twitter className="w-4 h-4 md:w-5 md:h-5" />
                 </a>
               )}
             </div>
           </div>
 
           {protocol.description && (
-            <p className="text-gray-400 leading-relaxed">
+            <p className="text-sm md:text-base text-gray-400 leading-relaxed">
               {protocol.description}
             </p>
           )}
 
-          {/* 审计和其他信息 */}
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-800">
+          {/* 审计和其他信息 - 移动端可滚动 */}
+          <div className="flex items-center gap-3 md:gap-4 mt-4 pt-4 border-t border-gray-800 overflow-x-auto hide-scrollbar">
             {protocol.audits && (
-              <div className="flex items-center gap-2 text-sm">
-                <Shield className="w-4 h-4 text-green-500" />
+              <div className="flex items-center gap-2 text-xs md:text-sm flex-shrink-0">
+                <Shield className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-500" />
                 <span className="text-gray-400">Audited</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Code className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 flex-shrink-0">
+              <Code className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span>Category: {protocol.category}</span>
             </div>
           </div>
         </div>
 
-        {/* Tab 导航 */}
-        <div className="mb-6 bg-gray-900 rounded-xl border border-gray-800 p-2">
-          <div className="flex gap-2">
+        {/* Tab 导航 - 移动端可滚动 */}
+        <div className="mb-6 bg-gray-900 rounded-xl border border-gray-800 p-2 -mx-4 px-4 md:mx-0 md:px-2">
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar">
             <button
               onClick={() => setActiveTab('info')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
                 activeTab === 'info'
                   ? 'bg-blue-500 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
-              <TrendingUp className="w-4 h-4" />
+              <TrendingUp className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Information
             </button>
             <button
               onClick={() => setActiveTab('yields')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
                 activeTab === 'yields'
                   ? 'bg-blue-500 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
-              <Zap className="w-4 h-4" />
+              <Zap className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Yields
             </button>
             <button
               onClick={() => setActiveTab('methodology')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
                 activeTab === 'methodology'
                   ? 'bg-blue-500 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
-              <Info className="w-4 h-4" />
+              <Info className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Methodology
             </button>
           </div>
@@ -304,13 +307,14 @@ export default function ProtocolDetailPage({ params }: PageProps) {
               <Suspense fallback={<div className="h-[400px] bg-gray-900 rounded-xl animate-pulse" />}>
                 <TVLHistoryChart
                   data={chartData}
+                  name={protocol.name}
                   height={400}
                 />
               </Suspense>
             )}
 
-            {/* 关键指标网格 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* 关键指标网格 - 移动端单列 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               <MetricCard
                 icon={DollarSign}
                 label="Fees (Annualized)"
