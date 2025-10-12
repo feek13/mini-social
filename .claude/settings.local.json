@@ -29,7 +29,11 @@
       "Bash(git commit:*)",
       "Bash(npm run lint)",
       "Bash(npm run build:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx eslint:*)",
+      "Bash(lsof:*)",
+      "Bash(curl -s -o /dev/null -w \"HTTP Status: %{http_code}\\n\" http://localhost:3000/)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

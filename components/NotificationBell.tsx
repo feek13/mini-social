@@ -15,40 +15,38 @@ export default function NotificationBell({ variant = 'icon' }: NotificationBellP
   const [isOpen, setIsOpen] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
 
-  // 获取未读数量
-  const fetchUnreadCount = async () => {
-    if (!user) return
-
-    try {
-      const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession()
-      if (!session?.access_token) return
-
-      const response = await fetch('/api/notifications/unread-count', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const newCount = data.unreadCount
-
-        // 如果数量增加，触发动画
-        if (newCount > unreadCount) {
-          setIsAnimating(true)
-          setTimeout(() => setIsAnimating(false), 500)
-        }
-
-        setUnreadCount(newCount)
-      }
-    } catch (error) {
-      console.error('获取未读数量失败:', error)
-    }
-  }
-
   // 初始加载和轮询
   useEffect(() => {
     if (!user) return
+
+    // 获取未读数量
+    const fetchUnreadCount = async () => {
+      try {
+        const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession()
+        if (!session?.access_token) return
+
+        const response = await fetch('/api/notifications/unread-count', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const newCount = data.unreadCount
+
+          // 如果数量增加，触发动画
+          if (newCount > unreadCount) {
+            setIsAnimating(true)
+            setTimeout(() => setIsAnimating(false), 500)
+          }
+
+          setUnreadCount(newCount)
+        }
+      } catch (error) {
+        console.error('获取未读数量失败:', error)
+      }
+    }
 
     fetchUnreadCount()
 
@@ -56,7 +54,7 @@ export default function NotificationBell({ variant = 'icon' }: NotificationBellP
     const interval = setInterval(fetchUnreadCount, 30000)
 
     return () => clearInterval(interval)
-  }, [user])
+  }, [user, unreadCount])
 
   // 格式化未读数量显示
   const formatCount = (count: number) => {

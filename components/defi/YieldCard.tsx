@@ -19,7 +19,6 @@ export default function YieldCard({ pool }: YieldCardProps) {
     apyMean30d,
     tvlUsd,
     ilRisk,
-    pool: poolId,
     stablecoin,
   } = pool
 

@@ -104,7 +104,8 @@ export default function TrendingPage() {
   // 初始加载
   useEffect(() => {
     fetchTrendingPosts(timeRange, 1)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 当用户登录状态改变时，重新获取点赞状态
   useEffect(() => {
@@ -113,7 +114,7 @@ export default function TrendingPage() {
     } else if (!user) {
       setLikedPostIds(new Set())
     }
-  }, [user?.id, fetchUserLikes, posts.length])
+  }, [user, user?.id, fetchUserLikes, posts.length])
 
   // 点赞或取消点赞
   const handleToggleLike = async (postId: string) => {
@@ -322,7 +323,6 @@ export default function TrendingPage() {
                     onUnlike={handleToggleLike}
                     onDelete={handlePostDelete}
                     isLiked={likedPostIds.has(post.id)}
-                    commentsCount={post.comments_count || 0}
                   />
                 </div>
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Image as ImageIcon, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useAuth } from '@/app/providers/AuthProvider'

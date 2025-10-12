@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Search, Loader2, TrendingUp, Droplets, Coins, Flame, Zap, Shield, Sparkles } from 'lucide-react'
+import { X, Search, Loader2, TrendingUp, Droplets, Coins, Zap, Sparkles } from 'lucide-react'
 import { Protocol, YieldPool } from '@/lib/defillama/types'
 import Image from 'next/image'
 import { formatTVL, formatAPY } from '@/lib/utils'

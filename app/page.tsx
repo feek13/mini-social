@@ -511,11 +511,6 @@ export default function Home() {
                     onRepost={handleRepost}
                     isLiked={likedPostIds.has(post.id)}
                     hasReposted={repostedPostIds.has(postIdToCheck)}
-                    commentsCount={
-                      post.is_repost && post.original_post
-                        ? post.original_post.comments_count || 0
-                        : post.comments_count || 0
-                    }
                   />
                 </div>
               )

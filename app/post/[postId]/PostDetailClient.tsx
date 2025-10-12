@@ -23,8 +23,6 @@ export default function PostDetailClient({
   const [comments, setComments] = useState(initialComments)
   const [isLiked, setIsLiked] = useState(false)
   const [hasReposted, setHasReposted] = useState(false)
-  const [loadingLikeStatus, setLoadingLikeStatus] = useState(true)
-  const [loadingRepostStatus, setLoadingRepostStatus] = useState(true)
   const [isLikeProcessing, setIsLikeProcessing] = useState(false)
   const [pendingLikeState, setPendingLikeState] = useState<boolean | null>(null)
 
@@ -32,8 +30,6 @@ export default function PostDetailClient({
   useEffect(() => {
     const checkInteractionStatus = async () => {
       if (!user) {
-        setLoadingLikeStatus(false)
-        setLoadingRepostStatus(false)
         return
       }
 
@@ -74,9 +70,6 @@ export default function PostDetailClient({
         console.error('检查互动状态异常:', error)
         setIsLiked(false)
         setHasReposted(false)
-      } finally {
-        setLoadingLikeStatus(false)
-        setLoadingRepostStatus(false)
       }
     }
 
@@ -112,7 +105,6 @@ export default function PostDetailClient({
       if (isLikeProcessing || pendingLikeState === null) return
 
       setIsLikeProcessing(true)
-      const targetState = pendingLikeState
 
       try {
         const { data: { session } } = await supabase.auth.getSession()

@@ -59,6 +59,7 @@ export default function NotificationDropdown({ onClose, onCountChange }: Notific
 
   useEffect(() => {
     fetchNotifications()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   // 标记单条已读

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 
@@ -14,14 +14,14 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
 
   // 上一张
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
-  }
+  }, [images.length])
 
   // 下一张
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
-  }
+  }, [images.length])
 
   // 键盘事件
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
       window.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = 'unset'
     }
-  }, [onClose])
+  }, [onClose, handleNext, handlePrevious])
 
   // 触摸事件（移动端滑动）
   const [touchStart, setTouchStart] = useState(0)

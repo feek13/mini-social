@@ -2,8 +2,6 @@
 
 import React, { useState, useMemo } from 'react'
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,15 +21,21 @@ interface ChartDataPoint {
 
 interface TVLHistoryChartProps {
   data: ChartDataPoint[]
-  name: string
   height?: number
+}
+
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: Array<{
+    payload: ChartDataPoint
+    value: number
+  }>
 }
 
 type TimeRange = '7d' | '30d' | '90d' | '180d' | '1y' | 'all'
 
 export default function TVLHistoryChart({
   data,
-  name,
   height = 400
 }: TVLHistoryChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('all')
@@ -70,7 +74,7 @@ export default function TVLHistoryChart({
     })
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (

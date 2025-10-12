@@ -65,6 +65,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications(1, false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filterType])
 
   // 标记全部已读
@@ -151,8 +152,6 @@ export default function NotificationsPage() {
 
   // 获取通知内容
   const getNotificationContent = (notification: Notification) => {
-    const username = notification.sender?.username || '某用户'
-
     switch (notification.type) {
       case 'like':
         return `点赞了你的动态`

@@ -12,7 +12,6 @@ interface CommentFormProps {
 }
 
 export default function CommentForm({
-  postId: _postId,
   onSubmit,
   placeholder = '写下你的评论...'
 }: CommentFormProps) {

@@ -1,5 +1,3 @@
-import { User } from '@/types/database'
-
 // DiceBear 头像风格列表
 export const AVATAR_STYLES = [
   { id: 'avataaars', name: '卡通人像', preview: '👤' },

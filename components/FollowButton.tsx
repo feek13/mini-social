@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Bell, BellRing, Loader2 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { supabase } from '@/lib/supabase'

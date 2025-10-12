@@ -11,7 +11,7 @@ export async function generateMetadata({
   params: Promise<{ postId: string; commentId: string }>
 }): Promise<Metadata> {
   try {
-    const { postId, commentId } = await params
+    const { commentId } = await params
 
     // 直接使用 Supabase 客户端获取数据
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -67,7 +67,8 @@ export default async function CommentDetailPage({
 }: {
   params: Promise<{ postId: string; commentId: string }>
 }) {
-  const { postId, commentId } = await params
+  const paramsData = await params
+  const { commentId } = paramsData
 
   // 直接使用 Supabase 客户端获取数据
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -79,6 +80,24 @@ export default async function CommentDetailPage({
   let replies: Comment[] = []
 
   try {
+    // 获取评论详情先，以获取 postId
+    const { data: commentData, error: commentError } = await supabase
+      .from('comments')
+      .select('*, user:user_id(*)')
+      .eq('id', commentId)
+      .single()
+
+    if (commentError || !commentData) {
+      notFound()
+    }
+
+    comment = {
+      ...commentData,
+      user: commentData.user
+    } as Comment
+
+    const postId = comment.post_id
+
     // 获取帖子数据
     const { data: postData, error: postError } = await supabase
       .from('posts')
@@ -122,27 +141,6 @@ export default async function CommentDetailPage({
           user: originalUserData
         }
       }
-    }
-
-    // 获取评论详情
-    const { data: commentData, error: commentError } = await supabase
-      .from('comments')
-      .select('*, user:user_id(*)')
-      .eq('id', commentId)
-      .single()
-
-    if (commentError || !commentData) {
-      notFound()
-    }
-
-    comment = {
-      ...commentData,
-      user: commentData.user
-    } as Comment
-
-    // 验证评论属于该动态
-    if (comment.post_id !== postId) {
-      notFound()
     }
 
     // 获取回复列表

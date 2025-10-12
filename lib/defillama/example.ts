@@ -88,7 +88,7 @@ export async function exampleGetTokenPrices() {
     console.log('\n批量代币价格:')
     const prices = await defillama.getTokenPrices(tokens)
 
-    Object.entries(prices).forEach(([coin, price]) => {
+    Object.values(prices).forEach((price) => {
       console.log(`${price.symbol}: $${price.price}`)
     })
   } catch (error) {

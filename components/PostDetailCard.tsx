@@ -43,7 +43,6 @@ export default function PostDetailCard({
   const [repostError, setRepostError] = useState('')
   const [isReposting, setIsReposting] = useState(false)
 
-  const isOwner = user?.id === post.user_id
   const originalAuthorId = post.is_repost && post.original_post
     ? post.original_post.user_id
     : post.user_id

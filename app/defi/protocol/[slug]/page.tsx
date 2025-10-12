@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar'
 import ProtocolDetailSkeleton from '@/components/defi/ProtocolDetailSkeleton'
 import MetricCard from '@/components/defi/MetricCard'
 import { useProtocolDetail } from '@/hooks/useProtocolDetail'
+import { ProtocolDetail } from '@/lib/defillama/types'
 import {
   ArrowLeft,
   TrendingUp,
@@ -83,7 +84,11 @@ export default function ProtocolDetailPage({ params }: PageProps) {
   }, [])
 
   // 使用优化的数据获取 Hook
-  const { data: protocol, isLoading, error } = useProtocolDetail(slug)
+  const { data: protocol, isLoading, error } = useProtocolDetail(slug) as {
+    data: ProtocolDetail | undefined
+    isLoading: boolean
+    error: Error | null
+  }
 
   // 转换历史数据（使用 useMemo 缓存）
   const chartData = useMemo(() => {
@@ -307,7 +312,6 @@ export default function ProtocolDetailPage({ params }: PageProps) {
               <Suspense fallback={<div className="h-[400px] bg-gray-900 rounded-xl animate-pulse" />}>
                 <TVLHistoryChart
                   data={chartData}
-                  name={protocol.name}
                   height={400}
                 />
               </Suspense>

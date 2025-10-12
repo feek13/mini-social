@@ -4,7 +4,7 @@ import { useState, memo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Heart, MessageCircle, Trash2, Send, Repeat2, Link as LinkIcon } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Repeat2, Link as LinkIcon } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Post } from '@/types/database'
 import Avatar from '@/components/Avatar'
@@ -17,18 +17,6 @@ import { supabase } from '@/lib/supabase'
 import { renderText } from '@/lib/textParser'
 import { useRouter } from 'next/navigation'
 
-interface Comment {
-  id: string
-  content: string
-  created_at: string
-  user_id: string
-  user?: {
-    username: string
-    avatar_url?: string
-    avatar_template?: string
-  }
-}
-
 interface PostCardProps {
   post: Post
   onLike?: (postId: string) => void
@@ -37,7 +25,6 @@ interface PostCardProps {
   onRepost?: (postId: string, newRepostCount: number) => void
   isLiked?: boolean
   hasReposted?: boolean
-  commentsCount?: number
 }
 
 const PostCard = memo(function PostCard({
@@ -48,22 +35,12 @@ const PostCard = memo(function PostCard({
   onRepost,
   isLiked = false,
   hasReposted = false,
-  commentsCount: initialCommentsCount = 0,
 }: PostCardProps) {
   const router = useRouter()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showDeleteCommentDialog, setShowDeleteCommentDialog] = useState(false)
-  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
   const [likeAnimating, setLikeAnimating] = useState(false)
-  const [commentAnimating, setCommentAnimating] = useState(false)
-  const [showComments, setShowComments] = useState(false)
-  const [comments, setComments] = useState<Comment[]>([])
-  const [commentsCount, setCommentsCount] = useState(initialCommentsCount)
-  const [commentContent, setCommentContent] = useState('')
-  const [loadingComments, setLoadingComments] = useState(false)
-  const [submittingComment, setSubmittingComment] = useState(false)
   const [showImageViewer, setShowImageViewer] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [showRepostDialog, setShowRepostDialog] = useState(false)
@@ -147,110 +124,33 @@ const PostCard = memo(function PostCard({
     }
   }
 
-  // 加载评论
-  const loadComments = async () => {
-    setLoadingComments(true)
-    try {
-      const response = await fetch(`/api/posts/${post.id}/comments`)
-      const data = await response.json()
+  // 加载评论 (currently unused, inline comments are shown in PostDetailClient)
+  // const loadComments = async () => {
+  //   setLoadingComments(true)
+  //   try {
+  //     const response = await fetch(`/api/posts/${post.id}/comments`)
+  //     const data = await response.json()
+  //
+  //     if (response.ok) {
+  //       setComments(data.comments || [])
+  //       setCommentsCount(data.comments?.length || 0)
+  //     }
+  //   } catch (error) {
+  //     console.error('加载评论失败:', error)
+  //   } finally {
+  //     setLoadingComments(false)
+  //   }
+  // }
 
-      if (response.ok) {
-        setComments(data.comments || [])
-        setCommentsCount(data.comments?.length || 0)
-      }
-    } catch (error) {
-      console.error('加载评论失败:', error)
-    } finally {
-      setLoadingComments(false)
-    }
-  }
-
-  // 切换评论显示
-  const handleToggleComments = () => {
-    const newShowComments = !showComments
-    setShowComments(newShowComments)
-
-    // 添加评论按钮动画
-    setCommentAnimating(true)
-    setTimeout(() => setCommentAnimating(false), 400)
-
-    if (newShowComments && comments.length === 0) {
-      loadComments()
-    }
-  }
-
-  // 提交评论
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user || !commentContent.trim() || submittingComment) return
-
-    setSubmittingComment(true)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token
-
-      const response = await fetch(`/api/posts/${post.id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
-        },
-        body: JSON.stringify({ content: commentContent }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setComments([...comments, data.comment])
-        setCommentsCount(commentsCount + 1)
-        setCommentContent('')
-      } else {
-        console.error('评论失败:', data.error)
-      }
-    } catch (error) {
-      console.error('评论失败:', error)
-    } finally {
-      setSubmittingComment(false)
-    }
-  }
-
-  // 删除评论
-  const handleDeleteCommentClick = (commentId: string) => {
-    setDeletingCommentId(commentId)
-    setShowDeleteCommentDialog(true)
-  }
-
-  const handleConfirmDeleteComment = async () => {
-    if (!deletingCommentId) return
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token
-
-      const response = await fetch(`/api/comments/${deletingCommentId}`, {
-        method: 'DELETE',
-        headers: {
-          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
-        },
-      })
-
-      if (response.ok) {
-        setComments(comments.filter(c => c.id !== deletingCommentId))
-        setCommentsCount(Math.max(0, commentsCount - 1))
-        setShowDeleteCommentDialog(false)
-        setDeletingCommentId(null)
-      } else {
-        const data = await response.json()
-        console.error('删除失败:', data.error)
-        setShowDeleteCommentDialog(false)
-        setDeletingCommentId(null)
-      }
-    } catch (error) {
-      console.error('删除评论失败:', error)
-      setShowDeleteCommentDialog(false)
-      setDeletingCommentId(null)
-    }
-  }
+  // 切换评论显示（currently unused but kept for future use)
+  // const handleToggleComments = () => {
+  //   const newShowComments = !showComments
+  //   setShowComments(newShowComments)
+  //
+  //   if (newShowComments && comments.length === 0) {
+  //     loadComments()
+  //   }
+  // }
 
   // 转发处理
   const handleRepost = async (comment?: string) => {
@@ -907,111 +807,6 @@ const PostCard = memo(function PostCard({
         </div>
       </div>
 
-      {/* 评论区域 */}
-      {showComments && (
-        <div className="mt-4 pt-4 border-t border-gray-100 ml-0 sm:ml-[52px] space-y-4">
-          {/* 评论输入框 */}
-          {user && (
-            <form onSubmit={handleSubmitComment} className="flex items-start space-x-3">
-              <Avatar
-                username={profile?.username || user.email?.split('@')[0]}
-                avatarUrl={profile?.avatar_url}
-                avatarTemplate={profile?.avatar_template}
-                size="sm"
-                className="flex-shrink-0 mt-1"
-              />
-              <div className="flex-1">
-                <textarea
-                  value={commentContent}
-                  onChange={(e) => setCommentContent(e.target.value)}
-                  placeholder="写下你的评论..."
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={2}
-                  maxLength={280}
-                  disabled={submittingComment}
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-400">
-                    {commentContent.length}/280
-                  </span>
-                  <button
-                    type="submit"
-                    disabled={!commentContent.trim() || submittingComment}
-                    className="flex items-center space-x-1 px-4 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-full hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{submittingComment ? '发送中...' : '发送'}</span>
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
-
-          {/* 评论列表 */}
-          <div className="space-y-3">
-            {loadingComments ? (
-              <div className="space-y-3">
-                {[1, 2].map((i) => (
-                  <div key={i} className="flex space-x-3 animate-pulse">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : comments.length === 0 ? (
-              <div className="text-center py-6 text-gray-400 text-sm">
-                <MessageCircle className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                还没有评论，快来抢沙发吧~
-              </div>
-            ) : (
-              comments.map((comment) => (
-                <div key={comment.id} className="flex items-start space-x-3 group animate-fade-in-up">
-                  <Link
-                    href={`/profile/${comment.user?.username || 'unknown'}`}
-                    className="flex-shrink-0"
-                  >
-                    <Avatar
-                      username={comment.user?.username}
-                      avatarUrl={comment.user?.avatar_url}
-                      avatarTemplate={comment.user?.avatar_template}
-                      size="sm"
-                    />
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <Link
-                        href={`/profile/${comment.user?.username || 'unknown'}`}
-                        className="font-medium text-sm text-gray-900 hover:text-blue-500 transition"
-                      >
-                        {comment.user?.username || '未知用户'}
-                      </Link>
-                      <span className="text-xs text-gray-400" suppressHydrationWarning>
-                        {formatRelativeTime(comment.created_at)}
-                      </span>
-                      {user?.id === comment.user_id && (
-                        <button
-                          onClick={() => handleDeleteCommentClick(comment.id)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition ml-auto"
-                          title="删除评论"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap break-words">
-                      {comment.content}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 图片查看器 */}
       {showImageViewer && post.images && post.images.length > 0 && (
         <ImageViewer
@@ -1035,19 +830,6 @@ const PostCard = memo(function PostCard({
         onClose={() => setShowDeleteDialog(false)}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
-      />
-
-      {/* 删除评论确认对话框 */}
-      <DeleteConfirmDialog
-        isOpen={showDeleteCommentDialog}
-        onClose={() => {
-          setShowDeleteCommentDialog(false)
-          setDeletingCommentId(null)
-        }}
-        onConfirm={handleConfirmDeleteComment}
-        title="删除评论"
-        message="确定要删除这条评论吗？删除后无法恢复。"
-        isDeleting={false}
       />
 
       {/* 登录提示对话框 - 使用 Portal 渲染到 body */}

@@ -143,7 +143,7 @@ export default function DeFiPage() {
   }, [])
 
   // 获取协议列表
-  const fetchProtocols = useCallback(async (loadMore = false) => {
+  const fetchProtocols = useCallback(async () => {
     try {
       setProtocolsLoading(true)
       setError('')
@@ -232,7 +232,7 @@ export default function DeFiPage() {
   }, [selectedYieldChain, selectedProtocol, minApy, yieldsLimit])
 
   // 查询代币价格
-  const fetchTokenPrice = async (silent = false) => {
+  const fetchTokenPrice = useCallback(async (silent = false) => {
     if (!tokenAddress.trim()) {
       if (!silent) showError('请输入代币地址')
       return
@@ -294,7 +294,8 @@ export default function DeFiPage() {
         setPriceLoading(false)
       }
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceChain, tokenAddress, autoUpdateEnabled, previousPrice])
 
   // 停止实时价格更新
   const stopRealtimeUpdates = useCallback(() => {
@@ -470,7 +471,7 @@ export default function DeFiPage() {
       clearInterval(countdownInterval)
       clearInterval(refreshTimer)
     }
-  }, [autoRefresh, priceResult, useRealtime])
+  }, [autoRefresh, priceResult, useRealtime, fetchTokenPrice])
 
   // Tab 切换时加载数据
   useEffect(() => {

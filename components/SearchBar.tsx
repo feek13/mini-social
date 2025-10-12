@@ -51,6 +51,7 @@ export default function SearchBar() {
   }, [])
 
   // 获取搜索建议
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchSuggestions = useCallback(
     debounce(async (searchQuery: string) => {
       if (searchQuery.length < 2) {

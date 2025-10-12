@@ -9,7 +9,7 @@ export function useProtocolDetail(
   slug: string,
   options?: UseProtocolDetailOptions
 ) {
-  return useQuery({
+  return useQuery<ProtocolDetail>({
     queryKey: ['protocol', slug],
     queryFn: async () => {
       const response = await fetch(`/api/defi/protocols/${slug}`)
@@ -24,6 +24,6 @@ export function useProtocolDetail(
     },
     enabled: !!slug && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000, // 5 分钟
-    cacheTime: 30 * 60 * 1000, // 30 分钟
+    gcTime: 30 * 60 * 1000, // 30 分钟 (React Query v5: cacheTime renamed to gcTime)
   })
 }
