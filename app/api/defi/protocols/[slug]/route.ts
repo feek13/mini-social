@@ -4,6 +4,10 @@ import { defillama } from '@/lib/defillama'
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600
 
+// 添加内存缓存
+const cache = new Map<string, { data: any; timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 分钟
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ slug: string }> }
@@ -11,28 +15,64 @@ export async function GET(
   try {
     const { slug } = await context.params
 
-    console.log(`[Protocol Detail API] 获取协议: ${slug}`)
+    // 检查内存缓存
+    const cached = cache.get(slug)
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log(`[Cache Hit] 从内存缓存返回: ${slug}`)
+      return NextResponse.json(
+        { protocol: cached.data },
+        {
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+            'X-Cache': 'HIT'
+          }
+        }
+      )
+    }
+
+    console.log(`[API] 获取协议: ${slug}`)
+    const startTime = Date.now()
 
     const protocol = await defillama.getProtocol(slug)
 
-    console.log(`✅ 成功获取协议 ${protocol.name}`)
+    const duration = Date.now() - startTime
+    console.log(`✅ 获取成功 (${duration}ms)`)
+
+    // 存入内存缓存
+    cache.set(slug, { data: protocol, timestamp: Date.now() })
+
+    // 清理过期缓存
+    if (cache.size > 100) {
+      const now = Date.now()
+      for (const [key, value] of cache.entries()) {
+        if (now - value.timestamp > CACHE_TTL) {
+          cache.delete(key)
+        }
+      }
+    }
 
     return NextResponse.json(
       { protocol },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
-        },
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+          'X-Cache': 'MISS'
+        }
       }
     )
   } catch (error) {
-    console.error('[Protocol Detail API] 错误:', error)
+    console.error('[API Error]:', error)
 
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : '获取协议详情失败'
       },
-      { status: error instanceof Error && error.message.includes('不存在') ? 404 : 500 }
+      {
+        status: error instanceof Error && error.message.includes('不存在') ? 404 : 500,
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      }
     )
   }
 }

@@ -1,27 +1,45 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import Navbar from '@/components/Navbar'
-import TVLHistoryChart from '@/components/defi/charts/TVLHistoryChart'
+import ProtocolDetailSkeleton from '@/components/defi/ProtocolDetailSkeleton'
 import MetricCard from '@/components/defi/MetricCard'
+import { useProtocolDetail } from '@/hooks/useProtocolDetail'
 import {
   ArrowLeft,
   TrendingUp,
   DollarSign,
   BarChart3,
   Users,
+  Activity,
   Zap,
-  Loader2,
-  AlertCircle,
   Info,
   Twitter,
   Globe,
   Code,
   Shield
 } from 'lucide-react'
-import { ProtocolDetail } from '@/lib/defillama/types'
+import { formatTVL } from '@/lib/utils'
+
+// 动态导入图表组件（懒加载）
+const TVLHistoryChart = dynamic(
+  () => import('@/components/defi/charts/TVLHistoryChart'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+        <div className="h-[400px] animate-pulse bg-gray-800 rounded" />
+      </div>
+    )
+  }
+)
+
+const YieldCard = dynamic(() => import('@/components/defi/YieldCard'), {
+  ssr: false
+})
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -29,57 +47,70 @@ interface PageProps {
 
 export default function ProtocolDetailPage({ params }: PageProps) {
   const [slug, setSlug] = useState<string>('')
-  const [protocol, setProtocol] = useState<ProtocolDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'info' | 'yields' | 'methodology'>('info')
 
   useEffect(() => {
     params.then(p => setSlug(p.slug))
   }, [params])
 
+  // 预连接到 DeFiLlama API (DNS 预取 + 预连接)
   useEffect(() => {
-    if (!slug) return
+    if (typeof window !== 'undefined') {
+      // DNS 预取
+      const dnsPrefetch = document.createElement('link')
+      dnsPrefetch.rel = 'dns-prefetch'
+      dnsPrefetch.href = 'https://api.llama.fi'
+      document.head.appendChild(dnsPrefetch)
 
-    const fetchProtocolDetail = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`/api/defi/protocols/${slug}`)
-        const data = await response.json()
+      // 预连接（包含 DNS、TCP、TLS 握手）
+      const preconnect = document.createElement('link')
+      preconnect.rel = 'preconnect'
+      preconnect.href = 'https://api.llama.fi'
+      preconnect.crossOrigin = 'anonymous'
+      document.head.appendChild(preconnect)
 
-        if (!response.ok) {
-          throw new Error(data.error || '获取协议详情失败')
-        }
+      // CDN 预连接（logo 和图片）
+      const cdnPreconnect = document.createElement('link')
+      cdnPreconnect.rel = 'preconnect'
+      cdnPreconnect.href = 'https://icons.llama.fi'
+      cdnPreconnect.crossOrigin = 'anonymous'
+      document.head.appendChild(cdnPreconnect)
 
-        setProtocol(data.protocol)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '获取数据失败')
-      } finally {
-        setLoading(false)
+      return () => {
+        // 清理
+        document.head.removeChild(dnsPrefetch)
+        document.head.removeChild(preconnect)
+        document.head.removeChild(cdnPreconnect)
       }
     }
+  }, [])
 
-    fetchProtocolDetail()
-  }, [slug])
+  // 使用优化的数据获取 Hook
+  const { data: protocol, isLoading, error } = useProtocolDetail(slug)
 
-  // 转换历史数据
-  type TVLItem = number | { date?: number; totalLiquidityUSD?: number }
-  const chartData = protocol?.tvl
-    ? protocol.tvl.map((item: TVLItem, index: number) => ({
-        date: typeof item === 'object' && item.date ? item.date : index,
-        tvl: typeof item === 'number' ? item : (typeof item === 'object' && item.totalLiquidityUSD ? item.totalLiquidityUSD : 0),
-        timestamp: (typeof item === 'object' && item.date) ? item.date : Date.now() / 1000 - (protocol.tvl.length - index) * 86400
-      }))
-    : []
+  // 转换历史数据（使用 useMemo 缓存）
+  const chartData = useMemo(() => {
+    if (!protocol?.tvl) return []
 
-  const currentTVL = protocol?.currentChainTvls
-    ? Object.values(protocol.currentChainTvls).reduce((a, b) => a + b, 0)
-    : chartData.length > 0
-    ? chartData[chartData.length - 1].tvl
-    : 0
+    return protocol.tvl.map((item: any, index: number) => ({
+      date: item.date || index,
+      tvl: typeof item === 'number' ? item : (item.totalLiquidityUSD || 0),
+      timestamp: item.date || Date.now() / 1000 - (protocol.tvl.length - index) * 86400
+    }))
+  }, [protocol?.tvl])
 
-  // 模拟的关键指标数据（实际应该从 API 获取）
-  const mockMetrics = {
+  const currentTVL = useMemo(() => {
+    if (protocol?.currentChainTvls) {
+      return Object.values(protocol.currentChainTvls).reduce((a, b) => a + b, 0)
+    }
+    if (chartData.length > 0) {
+      return chartData[chartData.length - 1].tvl
+    }
+    return 0
+  }, [protocol?.currentChainTvls, chartData])
+
+  // 模拟的关键指标（实际应从 API 获取）
+  const mockMetrics = useMemo(() => ({
     fees: currentTVL * 0.01,
     revenue: currentTVL * 0.005,
     holdersRevenue: currentTVL * 0.003,
@@ -88,28 +119,32 @@ export default function ProtocolDetailPage({ params }: PageProps) {
     activeAddresses: 5500,
     transactions: 38688,
     gasUsed: 1353
-  }
+  }), [currentTVL])
 
-  if (loading) {
+  // 加载状态
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-black">
         <Navbar />
-        <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        </div>
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          <div className="mb-6">
+            <div className="h-10 w-32 bg-gray-800 rounded animate-pulse" />
+          </div>
+          <ProtocolDetailSkeleton />
+        </main>
       </div>
     )
   }
 
+  // 错误状态
   if (error || !protocol) {
     return (
       <div className="min-h-screen bg-black">
         <Navbar />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
-            <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-600" />
             <h3 className="text-xl font-semibold text-white mb-2">
-              {error || '协议不存在'}
+              {error?.message || '协议不存在'}
             </h3>
             <Link
               href="/defi"
@@ -150,6 +185,7 @@ export default function ProtocolDetailPage({ params }: PageProps) {
                     fill
                     className="object-cover"
                     unoptimized
+                    priority
                   />
                 </div>
               )}
@@ -263,15 +299,17 @@ export default function ProtocolDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* 主内容区 */}
+        {/* 主内容区 - 使用 Suspense 懒加载 */}
         {activeTab === 'info' && (
           <div className="space-y-6">
-            {/* TVL 主图表 */}
+            {/* TVL 图表 - 懒加载 */}
             {chartData.length > 0 && (
-              <TVLHistoryChart
-                data={chartData}
-                height={400}
-              />
+              <Suspense fallback={<div className="h-[400px] bg-gray-900 rounded-xl animate-pulse" />}>
+                <TVLHistoryChart
+                  data={chartData}
+                  height={400}
+                />
+              </Suspense>
             )}
 
             {/* 关键指标网格 */}

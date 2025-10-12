@@ -1,17 +1,19 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart
-} from 'recharts'
+import React, { useState, useMemo, memo } from 'react'
+import dynamic from 'next/dynamic'
+import { useInView } from 'react-intersection-observer'
 import { formatTVL } from '@/lib/utils'
 import { TrendingUp } from 'lucide-react'
+
+// 懒加载 Recharts 组件
+const AreaChart = dynamic(() => import('recharts').then(mod => ({ default: mod.AreaChart })), { ssr: false })
+const Area = dynamic(() => import('recharts').then(mod => ({ default: mod.Area })), { ssr: false })
+const XAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.XAxis })), { ssr: false })
+const YAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.YAxis })), { ssr: false })
+const CartesianGrid = dynamic(() => import('recharts').then(mod => ({ default: mod.CartesianGrid })), { ssr: false })
+const Tooltip = dynamic(() => import('recharts').then(mod => ({ default: mod.Tooltip })), { ssr: false })
+const ResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { ssr: false })
 
 interface ChartDataPoint {
   date: number
@@ -26,12 +28,16 @@ interface TVLHistoryChartProps {
 
 type TimeRange = '7d' | '30d' | '90d' | '180d' | '1y' | 'all'
 
-export default function TVLHistoryChart({
+function TVLHistoryChart({
   data,
   height = 400
 }: TVLHistoryChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('all')
   const [showUSD, setShowUSD] = useState(true)
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+    triggerOnce: true
+  })
 
   // 根据时间范围过滤数据
   const filteredData = useMemo(() => {
@@ -50,6 +56,16 @@ export default function TVLHistoryChart({
     const cutoff = now - ranges[timeRange]
     return data.filter(d => d.timestamp >= cutoff)
   }, [data, timeRange])
+
+  // 数据采样优化（减少数据点）
+  const sampledData = useMemo(() => {
+    if (timeRange === 'all' && data.length > 365) {
+      // 超过365个数据点时，采样到365个点
+      const step = Math.ceil(data.length / 365)
+      return filteredData.filter((_, index) => index % step === 0)
+    }
+    return filteredData
+  }, [filteredData, timeRange, data.length])
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp * 1000)
@@ -105,6 +121,17 @@ export default function TVLHistoryChart({
     { value: 'all', label: 'All' }
   ]
 
+  // 只在可见时渲染图表
+  if (!inView) {
+    return (
+      <div ref={ref} className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+        <div style={{ height: `${height}px` }} className="flex items-center justify-center">
+          <div className="text-gray-500">加载图表中...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-gray-900 rounded-xl shadow-lg border border-gray-800 p-6">
       {/* 顶部：标题和控制器 */}
@@ -148,7 +175,7 @@ export default function TVLHistoryChart({
 
       {/* 图表 */}
       <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={filteredData}>
+        <AreaChart data={sampledData}>
           <defs>
             <linearGradient id="tvlGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
@@ -180,3 +207,6 @@ export default function TVLHistoryChart({
     </div>
   )
 }
+
+// 使用 memo 避免不必要的重渲染
+export default memo(TVLHistoryChart)
