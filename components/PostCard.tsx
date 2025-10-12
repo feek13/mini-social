@@ -541,7 +541,7 @@ const PostCard = memo(function PostCard({
           {post.original_post.defi_embeds && post.original_post.defi_embeds.length > 0 && (
             <div className="mb-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {post.original_post.defi_embeds.map((embed: any, index: number) => (
+                {post.original_post.defi_embeds.map((embed: { embed_type: string; reference_id: string; snapshot_data: Record<string, unknown> }, index: number) => (
                   <DeFiEmbedPreview
                     key={index}
                     embed={{
@@ -767,7 +767,7 @@ const PostCard = memo(function PostCard({
       {post.defi_embeds && post.defi_embeds.length > 0 && (
         <div className="mb-4 ml-0 sm:ml-[52px]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {post.defi_embeds.map((embed: any, index: number) => (
+            {post.defi_embeds.map((embed: { embed_type: string; reference_id: string; snapshot_data: Record<string, unknown> }, index: number) => (
               <DeFiEmbedPreview
                 key={index}
                 embed={{

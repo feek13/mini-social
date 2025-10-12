@@ -376,10 +376,16 @@ export async function POST(request: NextRequest) {
     }
 
     // 处理 DeFi embeds
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (defiEmbeds && Array.isArray(defiEmbeds) && defiEmbeds.length > 0) {
+      // 定义 DeFi embed 类型
+      interface DeFiEmbed {
+        type: string
+        referenceId: string
+        snapshotData: Record<string, unknown>
+      }
+
       // 限制最多 3 个 DeFi embeds
-      const embedsToInsert = defiEmbeds.slice(0, 3).map((embed: any) => ({
+      const embedsToInsert = (defiEmbeds as DeFiEmbed[]).slice(0, 3).map((embed) => ({
         post_id: post.id,
         embed_type: embed.type,
         reference_id: embed.referenceId,

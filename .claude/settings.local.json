@@ -25,7 +25,10 @@
       "Bash(curl -s \"https://api.llama.fi/chains\")",
       "Bash(curl -s \"http://localhost:3000/api/defi/chains\")",
       "Bash(curl -s -X POST \"http://localhost:3000/api/defi/prices\" -H \"Content-Type: application/json\" -d '{\n    \"\"\"\"tokens\"\"\"\": [\n      {\n        \"\"\"\"chain\"\"\"\": \"\"\"\"ethereum\"\"\"\",\n        \"\"\"\"address\"\"\"\": \"\"\"\"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2\"\"\"\"\n      }\n    ]\n  }')",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

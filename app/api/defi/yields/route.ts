@@ -220,9 +220,25 @@ async function cacheYieldsToDatabase(pools: YieldPool[]) {
 }
 
 /**
+ * 数据库缓存类型
+ */
+interface YieldCache {
+  pool_id: string
+  protocol: string
+  chain: string
+  symbol: string
+  tvl_usd: number
+  apy_base: number | null
+  apy_reward: number | null
+  apy: number
+  il_risk: string | null
+  exposure: string | null
+}
+
+/**
  * 将数据库缓存转换为 YieldPool 类型
  */
-function convertCacheToYieldPool(cache: any): YieldPool {
+function convertCacheToYieldPool(cache: YieldCache): YieldPool {
   return {
     chain: cache.chain,
     project: cache.protocol,

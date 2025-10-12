@@ -1,0 +1,8 @@
+# 忽略测试脚本
+scripts/
+# 忽略构建产物
+.next/
+out/
+build/
+# 忽略依赖
+node_modules/

@@ -290,7 +290,7 @@ export default function PostDetailCard({
             {post.original_post.defi_embeds && post.original_post.defi_embeds.length > 0 && (
               <div className="mb-3">
                 <div className="grid grid-cols-1 gap-2">
-                  {post.original_post.defi_embeds.map((embed: any, index: number) => (
+                  {post.original_post.defi_embeds.map((embed: { embed_type: string; reference_id: string; snapshot_data: Record<string, unknown> }, index: number) => (
                     <DeFiEmbedPreview
                       key={index}
                       embed={{
@@ -369,7 +369,7 @@ export default function PostDetailCard({
             {post.defi_embeds && post.defi_embeds.length > 0 && (
               <div className="mb-4">
                 <div className="grid grid-cols-1 gap-3">
-                  {post.defi_embeds.map((embed: any, index: number) => (
+                  {post.defi_embeds.map((embed: { embed_type: string; reference_id: string; snapshot_data: Record<string, unknown> }, index: number) => (
                     <DeFiEmbedPreview
                       key={index}
                       embed={{

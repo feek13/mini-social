@@ -224,9 +224,28 @@ async function cacheProtocolsToDatabase(protocols: Protocol[]) {
 }
 
 /**
+ * 数据库缓存类型
+ */
+interface ProtocolCache {
+  protocol_slug: string
+  protocol_name: string
+  token_address: string | null
+  token_symbol: string | null
+  url: string | null
+  description: string | null
+  chains: string[]
+  logo: string | null
+  category: string | null
+  tvl: number
+  chain_tvls: Record<string, number>
+  tvl_24h_change: number | null
+  tvl_7d_change: number | null
+}
+
+/**
  * 将数据库缓存转换为 Protocol 类型
  */
-function convertCacheToProtocol(cache: any): Protocol {
+function convertCacheToProtocol(cache: ProtocolCache): Protocol {
   return {
     id: cache.protocol_slug,
     name: cache.protocol_name,

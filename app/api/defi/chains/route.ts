@@ -8,7 +8,7 @@ import { defillama } from '@/lib/defillama'
  *
  * @returns {Chain[]} 区块链列表
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const chains = await defillama.getChains()
 

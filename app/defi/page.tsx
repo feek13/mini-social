@@ -98,7 +98,7 @@ export default function DeFiPage() {
   // Prices 状态
   const [priceChain, setPriceChain] = useState('ethereum')
   const [tokenAddress, setTokenAddress] = useState('')
-  const [priceResult, setPriceResult] = useState<any>(null)
+  const [priceResult, setPriceResult] = useState<{prices: Record<string, TokenPrice>} | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
   const [copiedPrice, setCopiedPrice] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
@@ -292,7 +292,7 @@ export default function DeFiPage() {
 
       // 检测价格变化
       if (data.prices && Object.keys(data.prices).length > 0) {
-        const firstPrice = Object.values(data.prices)[0] as any
+        const firstPrice = Object.values(data.prices)[0] as TokenPrice
         const newPrice = firstPrice.price
 
         if (previousPrice !== null && newPrice !== previousPrice) {
@@ -409,7 +409,7 @@ export default function DeFiPage() {
   }, [])
 
   // 启动自动价格更新（根据地区选择方式）
-  const startAutoUpdate = useCallback(async (priceData: any) => {
+  const startAutoUpdate = useCallback(async (priceData: {prices: Record<string, TokenPrice>}) => {
     console.log('[自动更新] 准备启动自动价格更新...')
 
     // 检测用户地区（如果还没检测过）
@@ -419,7 +419,7 @@ export default function DeFiPage() {
     }
 
     // 获取代币符号
-    const firstPrice = Object.values(priceData.prices)[0] as any
+    const firstPrice = Object.values(priceData.prices)[0] as TokenPrice
     const symbol = firstPrice.symbol || 'BTC'
     const normalizedSymbol = symbol.toUpperCase()
 
@@ -1504,7 +1504,7 @@ export default function DeFiPage() {
                       </div>
                     ) : (
                       /* DeFiLlama 价格显示 */
-                      Object.entries(priceResult.prices).map(([key, value]: [string, any]) => (
+                      Object.entries(priceResult.prices).map(([key, value]: [string, TokenPrice]) => (
                         <div key={key} className="p-4 bg-green-50 border border-green-200 rounded-lg">
                           <div className="flex items-start justify-between mb-3">
                             <div>
