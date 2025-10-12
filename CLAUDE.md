@@ -18,11 +18,16 @@ MiniSocial 是一个类似 Twitter 的迷你社交平台，使用 Next.js 15 和
 ## Commands
 
 ```bash
-npm run dev                # 启动开发服务器 (http://localhost:3000, 使用 Turbopack)
-npm run build              # 构建生产版本
-npm run start              # 启动生产服务器
-npm run lint               # 运行 ESLint 检查
-npm run test:defillama     # 测试 DeFiLlama API 集成
+npm run dev                    # 启动开发服务器 (http://localhost:3000, 使用 Turbopack)
+npm run build                  # 构建生产版本
+npm run start                  # 启动生产服务器
+npm run lint                   # 运行 ESLint 检查
+
+# DeFi 集成测试
+npm run test:defillama         # 测试 DeFiLlama API 客户端 (TypeScript)
+npm run test:defillama:full    # 完整集成测试 (包含所有 API 端点)
+npm run test:defillama:quick   # 快速测试 (bash 脚本)
+npm run test:frontend          # 前端 DeFi 功能测试
 ```
 
 ## Environment Variables
@@ -199,6 +204,13 @@ API 端点：
 - **收益率数据**: 获取所有收益率池子、筛选高收益池子
 - **链数据**: 获取所有链的 TVL 数据
 - **数据缓存**: 使用 Supabase 表缓存 API 响应，减少外部请求
+- **可视化组件**: `components/defi/charts/` - TVL 图表、趋势图等
+
+DeFi 嵌入功能：
+- `DeFiEmbedPicker` - 动态中选择并嵌入 DeFi 协议/池子数据
+- `DeFiEmbedPreview` - 预览嵌入的 DeFi 数据卡片
+- `ProtocolCard` / `YieldCard` - 协议和收益率展示卡片
+- `TVLChart` / `MiniTrendChart` - 数据可视化图表（使用 Recharts）
 
 客户端使用：
 ```typescript
@@ -216,6 +228,8 @@ const yields = await defillama.getTopYields(10, 1000000)
 
 测试：
 - 运行 `npm run test:defillama` 测试 API 集成
+- 运行 `npm run test:frontend` 测试前端 DeFi 组件
+- 访问 `/defi` 查看 DeFi 数据页面
 - 访问 `/api/test-defillama` 查看 API 端点示例
 
 详细文档：`lib/defillama/README.md`
@@ -368,6 +382,7 @@ try {
 3. **RLS 策略**: 确保所有表都正确配置了 RLS，否则数据可能泄露
 4. **触发器依赖**: 修改表结构前检查相关触发器
 5. **环境变量**: 以 `NEXT_PUBLIC_` 开头的变量会暴露到客户端
+6. **端口冲突**: 如果 3000 端口被占用，使用 `lsof -ti:3000 | xargs kill -9` 或 `pkill -f "next dev"` 清理进程
 
 ## Deployment Notes
 

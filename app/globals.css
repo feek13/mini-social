@@ -546,3 +546,42 @@ input:focus, textarea:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* DeFi 详情页暗色主题样式 */
+.defi-dark-theme {
+  background: #000000;
+  color: #ffffff;
+}
+
+.defi-card {
+  background: #111827;
+  border: 1px solid #1f2937;
+}
+
+.defi-card:hover {
+  border-color: #374151;
+}
+
+/* 图表工具提示样式 */
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+/* 自定义滚动条（可选） */
+.defi-dark-theme::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.defi-dark-theme::-webkit-scrollbar-track {
+  background: #111827;
+}
+
+.defi-dark-theme::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+}
+
+.defi-dark-theme::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}

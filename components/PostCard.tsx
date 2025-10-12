@@ -452,14 +452,20 @@ const PostCard = memo(function PostCard({
 
       {/* 转发评论（如果有） */}
       {post.is_repost && post.repost_comment && (
-        <Link
-          href={`/post/${post.id}`}
+        <div
+          onClick={(e) => {
+            // 如果点击的是链接，不要导航到动态详情页
+            if ((e.target as HTMLElement).closest('a')) {
+              return
+            }
+            router.push(`/post/${post.id}`)
+          }}
           className="block mb-4 ml-0 sm:ml-[52px] cursor-pointer hover:bg-gray-50 -mx-4 px-4 py-2 transition"
         >
           <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
             {renderText(post.repost_comment)}
           </p>
-        </Link>
+        </div>
       )}
 
       {/* 如果是转发，显示原动态（嵌套卡片） */}

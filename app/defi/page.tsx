@@ -103,7 +103,7 @@ export default function DeFiPage() {
   const [copiedPrice, setCopiedPrice] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [autoRefresh, setAutoRefresh] = useState(false)
-  const [refreshInterval, setRefreshInterval] = useState(30) // 默认 30 秒
+  const [refreshInterval, setRefreshInterval] = useState(10) // 默认 10 秒
   const [nextRefreshIn, setNextRefreshIn] = useState(0)
   const [previousPrice, setPreviousPrice] = useState<number | null>(null)
   const [priceChange, setPriceChange] = useState<'up' | 'down' | null>(null)
@@ -404,44 +404,34 @@ export default function DeFiPage() {
   const startPollingUpdate = useCallback(() => {
     setAutoRefresh(true)
     setAutoUpdateEnabled(true)
-    setNextRefreshIn(30) // 30秒刷新一次
-    console.log('[自动更新] 定时刷新已启动（30秒间隔）')
+    setNextRefreshIn(10) // 10秒刷新一次
+    console.log('[自动更新] 定时刷新已启动（10秒间隔）')
   }, [])
 
   // 启动自动价格更新（根据地区选择方式）
   const startAutoUpdate = useCallback(async (priceData: {prices: Record<string, TokenPrice>}) => {
     console.log('[自动更新] 准备启动自动价格更新...')
 
-    // 检测用户地区（如果还没检测过）
-    let isUS = isUSUser
-    if (isUS === null) {
-      isUS = await detectUserRegion()
-    }
-
     // 获取代币符号
     const firstPrice = Object.values(priceData.prices)[0] as TokenPrice
     const symbol = firstPrice.symbol || 'BTC'
     const normalizedSymbol = symbol.toUpperCase()
 
-    if (isUS) {
-      // 美国用户：使用 WebSocket 实时更新
-      console.log('[自动更新] ✅ 美国用户，启动 WebSocket 实时更新')
+    // 尝试使用 WebSocket 实时更新（移除地区限制）
+    console.log('[自动更新] 🚀 尝试启动 WebSocket 实时更新（无地区限制）')
 
-      // 检查是否支持实时更新
-      if (COMMON_SYMBOLS[normalizedSymbol]) {
-        setUseRealtime(true)
-        setAutoUpdateEnabled(true)
-        startRealtimeUpdates(normalizedSymbol)
-      } else {
-        console.log(`[自动更新] ⚠️ ${symbol} 不支持 WebSocket，使用定时刷新`)
-        startPollingUpdate()
-      }
+    // 检查是否支持实时更新
+    if (COMMON_SYMBOLS[normalizedSymbol]) {
+      console.log(`[自动更新] ✅ ${symbol} 支持 WebSocket，启动实时更新`)
+      setUseRealtime(true)
+      setAutoUpdateEnabled(true)
+      startRealtimeUpdates(normalizedSymbol)
     } else {
-      // 非美国用户：使用定时刷新
-      console.log('[自动更新] 🌍 非美国用户，启动定时刷新')
+      console.log(`[自动更新] ⚠️ ${symbol} 不支持 WebSocket，使用定时刷新`)
+      console.log(`[自动更新] 支持的代币: ${Object.keys(COMMON_SYMBOLS).join(', ')}`)
       startPollingUpdate()
     }
-  }, [isUSUser, detectUserRegion, startRealtimeUpdates, startPollingUpdate])
+  }, [startRealtimeUpdates, startPollingUpdate])
 
   // 页面加载时获取链列表
   useEffect(() => {
@@ -475,11 +465,11 @@ export default function DeFiPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // 自动刷新价格（定时模式，30秒间隔）
+  // 自动刷新价格（定时模式，10秒间隔）
   useEffect(() => {
     if (!autoRefresh || !priceResult || useRealtime) return
 
-    const interval = 30 // 固定30秒
+    const interval = 10 // 固定10秒
 
     // 初始化倒计时
     setNextRefreshIn(interval)
@@ -1347,7 +1337,7 @@ export default function DeFiPage() {
                               实时价格更新中（毫秒级）
                             </>
                           ) : (
-                            '自动刷新中（30秒间隔）'
+                            '自动刷新中（10秒间隔）'
                           )}
                         </span>
                       </div>
@@ -1380,15 +1370,15 @@ export default function DeFiPage() {
                     <p className="text-xs text-gray-600">
                       {useRealtime ? (
                         <>
-                          ✨ 美国用户专享 - 使用 Binance WebSocket 获取真正的实时市场价格
+                          ✨ 使用 Binance WebSocket 获取真正的实时市场价格（毫秒级更新）
                           {!wsConnected && (
                             <span className="block mt-1 text-orange-600">
-                              ⚠️ 连接中，请稍候...
+                              ⚠️ 连接中，请稍候... 如果长时间无法连接，可能是网络限制
                             </span>
                           )}
                         </>
                       ) : (
-                        '💡 价格每 30 秒自动更新一次'
+                        '💡 价格每 10 秒自动更新一次'
                       )}
                     </p>
                   </div>
@@ -1617,9 +1607,6 @@ export default function DeFiPage() {
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48</div>
                   </button>
-                </div>
-                <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                  💡 这些代币支持实时价格更新（Binance WebSocket），查询后可启用实时模式体验秒级/毫秒级更新
                 </div>
               </div>
             </div>
