@@ -119,7 +119,7 @@ export default function Home() {
   }, [user?.id])
 
   // 发布新动态
-  const handlePostSubmit = async (content: string, imageUrls?: string[], originalPostId?: string) => {
+  const handlePostSubmit = async (content: string, imageUrls?: string[], originalPostId?: string, defiEmbeds?: unknown[]) => {
     try {
       // 获取当前会话的 access token
       const { data: { session } } = await supabase.auth.getSession()
@@ -135,6 +135,7 @@ export default function Home() {
           content,
           images: imageUrls,
           originalPostId,
+          defiEmbeds,
         }),
       })
 

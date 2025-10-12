@@ -15,7 +15,7 @@ export async function GET(_request: NextRequest) {
   try {
     const supabase = getSupabaseClient()
 
-    // 获取动态列表，按时间倒序，关联用户信息和评论计数
+    // 获取动态列表，按时间倒序，关联用户信息、评论计数和 DeFi embeds
     const { data: posts, error } = await supabase
       .from('posts')
       .select(`
@@ -25,7 +25,8 @@ export async function GET(_request: NextRequest) {
           avatar_url,
           avatar_template
         ),
-        comments(count)
+        comments(count),
+        post_defi_embeds(*)
       `)
       .order('created_at', { ascending: false })
 
@@ -56,7 +57,8 @@ export async function GET(_request: NextRequest) {
             avatar_url,
             avatar_template
           ),
-          comments(count)
+          comments(count),
+          post_defi_embeds(*)
         `)
         .in('id', originalPostIds)
 
@@ -69,7 +71,9 @@ export async function GET(_request: NextRequest) {
             user: post.profiles,
             profiles: undefined,
             comments_count: post.comments?.[0]?.count || 0,
-            comments: undefined
+            comments: undefined,
+            defi_embeds: post.post_defi_embeds || [],
+            post_defi_embeds: undefined
           }
           return acc
         }, {})
@@ -109,7 +113,7 @@ export async function GET(_request: NextRequest) {
       originalPostsMap[postId].repost_count = repostCountsMap[postId] || 0
     })
 
-    // 重命名 profiles 为 user，添加 comments_count 和 original_post，更新 repost_count
+    // 重命名 profiles 为 user，添加 comments_count、original_post、defi_embeds，更新 repost_count
     const postsWithUser = posts?.map(post => ({
       ...post,
       user: post.profiles,
@@ -119,7 +123,9 @@ export async function GET(_request: NextRequest) {
       repost_count: repostCountsMap[post.id] || 0,
       original_post: post.is_repost && post.original_post_id
         ? originalPostsMap[post.original_post_id]
-        : undefined
+        : undefined,
+      defi_embeds: post.post_defi_embeds || [],
+      post_defi_embeds: undefined
     }))
 
     // 返回响应并设置缓存头
@@ -166,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     // 3. 获取并验证请求数据
     const body = await request.json()
-    const { content, images, originalPostId } = body
+    const { content, images, originalPostId, defiEmbeds } = body
 
     // 如果是引用转发
     if (originalPostId) {
@@ -366,6 +372,27 @@ export async function POST(request: NextRequest) {
               mentioner_user_id: user.id
             }])
         }
+      }
+    }
+
+    // 处理 DeFi embeds
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (defiEmbeds && Array.isArray(defiEmbeds) && defiEmbeds.length > 0) {
+      // 限制最多 3 个 DeFi embeds
+      const embedsToInsert = defiEmbeds.slice(0, 3).map((embed: any) => ({
+        post_id: post.id,
+        embed_type: embed.type,
+        reference_id: embed.referenceId,
+        snapshot_data: embed.snapshotData,
+      }))
+
+      const { error: embedsError } = await supabase
+        .from('post_defi_embeds')
+        .insert(embedsToInsert)
+
+      if (embedsError) {
+        console.error('插入 DeFi embeds 错误:', embedsError)
+        // 不阻止发布成功，只记录错误
       }
     }
 

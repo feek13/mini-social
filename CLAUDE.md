@@ -18,10 +18,11 @@ MiniSocial 是一个类似 Twitter 的迷你社交平台，使用 Next.js 15 和
 ## Commands
 
 ```bash
-npm run dev          # 启动开发服务器 (http://localhost:3000, 使用 Turbopack)
-npm run build        # 构建生产版本
-npm run start        # 启动生产服务器
-npm run lint         # 运行 ESLint 检查
+npm run dev                # 启动开发服务器 (http://localhost:3000, 使用 Turbopack)
+npm run build              # 构建生产版本
+npm run start              # 启动生产服务器
+npm run lint               # 运行 ESLint 检查
+npm run test:defillama     # 测试 DeFiLlama API 集成
 ```
 
 ## Environment Variables
@@ -103,6 +104,10 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 - **comments**: 评论（通过触发器自动更新 posts.comments_count）
 - **follows**: 关注关系（包含 notify_on_post 字段用于特别关注）
 - **notifications**: 通知（类型：like, comment, repost, follow, new_post）
+- **defi_protocols**: DeFi 协议数据缓存（TVL、分类、链数据等）
+- **defi_yields**: 收益率池子数据缓存
+- **defi_token_prices**: 代币价格缓存（5 分钟过期）
+- **post_defi_embeds**: 动态中嵌入的 DeFi 数据快照
 
 ### Database Triggers
 
@@ -184,6 +189,36 @@ API 端点：
 - `GET /api/posts/trending` - 基于 `hot_score` 排序
 - 热度分数 = 点赞数 × 2 + 评论数 × 3 + 转发数 × 4 - 时间衰减
 - 触发器自动更新，无需手动计算
+
+### 7. DeFi 数据集成
+
+项目集成了 DeFiLlama API，提供链上 DeFi 数据查询功能：
+
+- **协议数据**: `lib/defillama/client.ts` - 获取协议列表、详情、搜索、按分类/链筛选
+- **代币价格**: 实时价格、历史价格、批量查询（支持多链）
+- **收益率数据**: 获取所有收益率池子、筛选高收益池子
+- **链数据**: 获取所有链的 TVL 数据
+- **数据缓存**: 使用 Supabase 表缓存 API 响应，减少外部请求
+
+客户端使用：
+```typescript
+import { defillama } from '@/lib/defillama'
+
+// 获取协议列表
+const protocols = await defillama.getProtocols()
+
+// 获取代币价格
+const price = await defillama.getTokenPrice('ethereum', '0x...')
+
+// 获取收益率数据
+const yields = await defillama.getTopYields(10, 1000000)
+```
+
+测试：
+- 运行 `npm run test:defillama` 测试 API 集成
+- 访问 `/api/test-defillama` 查看 API 端点示例
+
+详细文档：`lib/defillama/README.md`
 
 ## Component Patterns
 
@@ -309,12 +344,14 @@ try {
 
 ## Database Setup
 
-首次部署需要在 Supabase SQL Editor 运行 `supabase-setup.sql`：
+首次部署需要在 Supabase SQL Editor 依次运行以下脚本：
 
-1. 创建所有表结构
-2. 设置 RLS 策略
-3. 创建触发器和函数
-4. 创建索引优化查询
+1. `supabase-setup.sql` - 基础数据库结构、RLS 策略、触发器、索引
+2. `supabase-notifications.sql` - 通知系统
+3. `supabase-migration-add-nested-comments.sql` - 嵌套评论支持
+4. `supabase-migration-fix-counts.sql` - 计数修复
+5. `supabase-migration-hashtags-mentions.sql` - 标签和提及功能
+6. `supabase-migration-defillama.sql` - DeFi 数据缓存表（可选）
 
 ## Performance Optimizations
 

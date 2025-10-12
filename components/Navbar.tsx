@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { LogOut, Search as SearchIcon, X, Flame } from 'lucide-react'
+import { LogOut, Search as SearchIcon, X, Flame, TrendingUp } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import Avatar from '@/components/Avatar'
 import SearchBar from '@/components/SearchBar'
@@ -69,6 +69,15 @@ export default function Navbar() {
             >
               <Flame className="w-4 h-4 sm:w-5 sm:h-5 group-hover:animate-pulse" />
               <span className="hidden sm:inline text-sm font-medium">热门</span>
+            </Link>
+
+            {/* DeFi 数据链接 */}
+            <Link
+              href="/defi"
+              className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-gray-600 hover:text-blue-500 hover:bg-blue-50 transition-all group"
+            >
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline text-sm font-medium">DeFi</span>
             </Link>
 
             {/* 通知图标 */}

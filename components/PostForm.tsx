@@ -1,21 +1,24 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Image as ImageIcon, X, Loader2 } from 'lucide-react'
+import { Sparkles, Image as ImageIcon, X, Loader2, TrendingUp } from 'lucide-react'
 import Image from 'next/image'
 import { useAuth } from '@/app/providers/AuthProvider'
 import Avatar from '@/components/Avatar'
 import { uploadImage, validateImageFile } from '@/lib/uploadImage'
 import { Post } from '@/types/database'
 import { formatRelativeTime } from '@/lib/utils'
+import DeFiEmbedPicker, { DeFiEmbed } from '@/components/defi/DeFiEmbedPicker'
+import DeFiEmbedPreview from '@/components/defi/DeFiEmbedPreview'
 
 interface PostFormProps {
-  onSubmit: (content: string, imageUrls?: string[], originalPostId?: string) => Promise<void>
+  onSubmit: (content: string, imageUrls?: string[], originalPostId?: string, defiEmbeds?: DeFiEmbed[]) => Promise<void>
   placeholder?: string
 }
 
 const MAX_CHARACTERS = 280
 const MAX_IMAGES = 9
+const MAX_DEFI_EMBEDS = 3
 const POST_LINK_REGEX = /(?:https?:\/\/[^\s/]+)?\/post\/([a-f0-9-]+)/i
 
 export default function PostForm({
@@ -39,8 +42,12 @@ export default function PostForm({
   const [quotedPost, setQuotedPost] = useState<Post | null>(null)
   const [isLoadingQuote, setIsLoadingQuote] = useState(false)
 
+  // DeFi 嵌入相关状态
+  const [defiEmbeds, setDefiEmbeds] = useState<DeFiEmbed[]>([])
+  const [showDefiPicker, setShowDefiPicker] = useState(false)
+
   const remainingChars = MAX_CHARACTERS - content.length
-  const isValid = (content.trim().length > 0 || selectedImages.length > 0 || quotedPost) && remainingChars >= 0
+  const isValid = (content.trim().length > 0 || selectedImages.length > 0 || quotedPost || defiEmbeds.length > 0) && remainingChars >= 0
 
   // 清理函数：组件卸载时重置拖拽状态
   useEffect(() => {
@@ -308,7 +315,8 @@ export default function PostForm({
       await onSubmit(
         finalContent,
         imageUrls.length > 0 ? imageUrls : undefined,
-        quotedPost?.id
+        quotedPost?.id,
+        defiEmbeds.length > 0 ? defiEmbeds : undefined
       )
 
       // 清空状态
@@ -316,6 +324,7 @@ export default function PostForm({
       setSelectedImages([])
       setImagePreviewUrls([])
       setQuotedPost(null)
+      setDefiEmbeds([])
       setIsFocused(false)
 
       // 清理预览 URL
@@ -489,7 +498,21 @@ export default function PostForm({
               </div>
             )}
 
-            {/* 底部：图片选择、字符计数和发布按钮 */}
+            {/* DeFi 嵌入预览 */}
+            {defiEmbeds.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {defiEmbeds.map((embed, index) => (
+                  <DeFiEmbedPreview
+                    key={index}
+                    embed={embed}
+                    onRemove={() => setDefiEmbeds(prev => prev.filter((_, i) => i !== index))}
+                    compact={true}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* 底部：图片选择、DeFi 数据、字符计数和发布按钮 */}
             <div className="flex items-center justify-between mt-3">
               <div className="flex items-center space-x-3">
                 {/* 图片选择按钮 */}
@@ -521,6 +544,29 @@ export default function PostForm({
                 {selectedImages.length > 0 && (
                   <span className="text-xs text-gray-500">
                     {selectedImages.length}/{MAX_IMAGES}
+                  </span>
+                )}
+
+                {/* DeFi 数据按钮 */}
+                <button
+                  type="button"
+                  onClick={() => setShowDefiPicker(true)}
+                  disabled={loading || defiEmbeds.length >= MAX_DEFI_EMBEDS}
+                  className={`flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    defiEmbeds.length >= MAX_DEFI_EMBEDS
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-50 text-green-600 hover:bg-green-100 active:scale-95'
+                  }`}
+                  title={defiEmbeds.length >= MAX_DEFI_EMBEDS ? '最多 3 个 DeFi 数据' : '插入 DeFi 数据'}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="hidden sm:inline">DeFi</span>
+                </button>
+
+                {/* DeFi 计数提示 */}
+                {defiEmbeds.length > 0 && (
+                  <span className="text-xs text-gray-500">
+                    {defiEmbeds.length}/{MAX_DEFI_EMBEDS}
                   </span>
                 )}
 
@@ -612,6 +658,17 @@ export default function PostForm({
           </form>
         </div>
       </div>
+
+      {/* DeFi 数据选择器 Modal */}
+      {showDefiPicker && (
+        <DeFiEmbedPicker
+          onSelect={(embed) => {
+            setDefiEmbeds(prev => [...prev, embed])
+            setShowDefiPicker(false)
+          }}
+          onClose={() => setShowDefiPicker(false)}
+        />
+      )}
     </div>
   )
 }

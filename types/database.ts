@@ -30,6 +30,17 @@ export type Post = {
   original_post?: Post // 原动态信息（嵌套）
   hashtags?: Hashtag[]       // 关联的话题标签
   mentions?: Mention[]       // 提及的用户
+  defi_embeds?: DeFiEmbed[]  // DeFi 嵌入数据
+}
+
+// DeFi 嵌入数据类型
+export type DeFiEmbed = {
+  id?: string
+  post_id?: string
+  embed_type: 'protocol' | 'token_price' | 'yield_pool' | 'chain'
+  reference_id: string       // 协议slug/代币地址/池子ID/链名
+  snapshot_data: Record<string, unknown>  // 快照数据（JSONB）
+  created_at?: string
 }
 
 export type Comment = {

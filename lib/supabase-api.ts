@@ -29,6 +29,35 @@ export function getSupabaseClient() {
   })
 }
 
+// 使用 service role 创建 Supabase 客户端（用于绕过 RLS 的后台操作，如缓存）
+export function getSupabaseServiceClient() {
+  // 清理环境变量值（移除可能的换行符和空白）
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const rawServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  const supabaseUrl = rawUrl?.trim().replace(/\s+/g, '') || ''
+  const supabaseServiceKey = rawServiceKey?.trim().replace(/\s+/g, '')
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase URL or Service Role Key')
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    db: {
+      schema: 'public',
+    },
+    global: {
+      headers: {
+        'x-client-info': 'mini-social-service',
+      },
+    },
+  })
+}
+
 // 使用用户 token 创建 Supabase 客户端（用于需要认证的操作）
 export function getSupabaseClientWithAuth(accessToken: string) {
   // 清理环境变量值（移除可能的换行符和空白）

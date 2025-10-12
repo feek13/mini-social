@@ -10,7 +10,7 @@ import { uploadImage, validateImageFile } from '@/lib/uploadImage'
 interface PostDialogProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (content: string, imageUrls?: string[]) => Promise<void>
+  onSubmit: (content: string, imageUrls?: string[], originalPostId?: string, defiEmbeds?: unknown[]) => Promise<void>
 }
 
 const MAX_CHARACTERS = 280

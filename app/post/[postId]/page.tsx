@@ -18,10 +18,19 @@ export async function generateMetadata({
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    // 获取帖子数据
+    // 获取帖子数据（包含 DeFi 嵌入）
     const { data: postData, error: postError } = await supabase
       .from('posts')
-      .select('*')
+      .select(`
+        *,
+        profiles!posts_user_id_fkey (
+          id,
+          username,
+          avatar_url,
+          avatar_template
+        ),
+        post_defi_embeds(*)
+      `)
       .eq('id', postId)
       .single()
 
@@ -31,36 +40,38 @@ export async function generateMetadata({
       }
     }
 
-    // 获取用户信息
-    const { data: userData } = await supabase
-      .from('profiles')
-      .select('id, username, avatar_url, avatar_template')
-      .eq('id', postData.user_id)
-      .single()
-
     const post = {
       ...postData,
-      user: userData
+      user: postData.profiles,
+      profiles: undefined,
+      defi_embeds: postData.post_defi_embeds || [],
+      post_defi_embeds: undefined
     }
 
-    // 如果是转发，获取原动态
+    // 如果是转发，获取原动态（包含 DeFi 嵌入）
     if (post.is_repost && post.original_post_id) {
       const { data: originalPostData } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          profiles!posts_user_id_fkey (
+            id,
+            username,
+            avatar_url,
+            avatar_template
+          ),
+          post_defi_embeds(*)
+        `)
         .eq('id', post.original_post_id)
         .single()
 
       if (originalPostData) {
-        const { data: originalUserData } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url, avatar_template')
-          .eq('id', originalPostData.user_id)
-          .single()
-
         post.original_post = {
           ...originalPostData,
-          user: originalUserData
+          user: originalPostData.profiles,
+          profiles: undefined,
+          defi_embeds: originalPostData.post_defi_embeds || [],
+          post_defi_embeds: undefined
         }
       }
     }
@@ -136,10 +147,19 @@ export default async function PostDetailPage({
   let comments: Comment[] = []
 
   try {
-    // 获取帖子数据
+    // 获取帖子数据（包含 DeFi 嵌入）
     const { data: postData, error: postError } = await supabase
       .from('posts')
-      .select('*')
+      .select(`
+        *,
+        profiles!posts_user_id_fkey (
+          id,
+          username,
+          avatar_url,
+          avatar_template
+        ),
+        post_defi_embeds(*)
+      `)
       .eq('id', postId)
       .single()
 
@@ -147,36 +167,38 @@ export default async function PostDetailPage({
       notFound()
     }
 
-    // 获取用户信息
-    const { data: userData } = await supabase
-      .from('profiles')
-      .select('id, username, avatar_url, avatar_template')
-      .eq('id', postData.user_id)
-      .single()
-
     post = {
       ...postData,
-      user: userData
+      user: postData.profiles,
+      profiles: undefined,
+      defi_embeds: postData.post_defi_embeds || [],
+      post_defi_embeds: undefined
     }
 
-    // 如果是转发，获取原动态
+    // 如果是转发，获取原动态（包含 DeFi 嵌入）
     if (post.is_repost && post.original_post_id) {
       const { data: originalPostData } = await supabase
         .from('posts')
-        .select('*')
+        .select(`
+          *,
+          profiles!posts_user_id_fkey (
+            id,
+            username,
+            avatar_url,
+            avatar_template
+          ),
+          post_defi_embeds(*)
+        `)
         .eq('id', post.original_post_id)
         .single()
 
       if (originalPostData) {
-        const { data: originalUserData } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url, avatar_template')
-          .eq('id', originalPostData.user_id)
-          .single()
-
         post.original_post = {
           ...originalPostData,
-          user: originalUserData
+          user: originalPostData.profiles,
+          profiles: undefined,
+          defi_embeds: originalPostData.post_defi_embeds || [],
+          post_defi_embeds: undefined
         }
       }
     }

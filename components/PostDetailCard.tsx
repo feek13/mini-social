@@ -10,6 +10,7 @@ import { Post } from '@/types/database'
 import Avatar from '@/components/Avatar'
 import ImageViewer from '@/components/ImageViewer'
 import RepostDialog from '@/components/RepostDialog'
+import DeFiEmbedPreview from '@/components/defi/DeFiEmbedPreview'
 import { supabase } from '@/lib/supabase'
 import { renderText } from '@/lib/textParser'
 
@@ -284,6 +285,26 @@ export default function PostDetailCard({
                 ))}
               </div>
             )}
+
+            {/* 原动态 DeFi 嵌入显示 */}
+            {post.original_post.defi_embeds && post.original_post.defi_embeds.length > 0 && (
+              <div className="mb-3">
+                <div className="grid grid-cols-1 gap-2">
+                  {post.original_post.defi_embeds.map((embed: any, index: number) => (
+                    <DeFiEmbedPreview
+                      key={index}
+                      embed={{
+                        type: embed.embed_type,
+                        referenceId: embed.reference_id,
+                        snapshotData: embed.snapshot_data
+                      }}
+                      compact={true}
+                      showLatestDataButton={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -339,6 +360,26 @@ export default function PostDetailCard({
                         unoptimized
                       />
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* DeFi 嵌入显示 */}
+            {post.defi_embeds && post.defi_embeds.length > 0 && (
+              <div className="mb-4">
+                <div className="grid grid-cols-1 gap-3">
+                  {post.defi_embeds.map((embed: any, index: number) => (
+                    <DeFiEmbedPreview
+                      key={index}
+                      embed={{
+                        type: embed.embed_type,
+                        referenceId: embed.reference_id,
+                        snapshotData: embed.snapshot_data
+                      }}
+                      compact={false}
+                      showLatestDataButton={true}
+                    />
                   ))}
                 </div>
               </div>

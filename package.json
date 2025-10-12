@@ -6,7 +6,11 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:defillama": "tsx scripts/test-defillama.ts",
+    "test:defillama:full": "npx ts-node scripts/test-defillama-integration.ts",
+    "test:defillama:quick": "bash scripts/quick-test-defillama.sh",
+    "test:frontend": "bash scripts/test-frontend-defi.sh"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
@@ -30,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

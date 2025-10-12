@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run test:*)",
+      "Bash(curl -s \"http://localhost:3001/api/defi/protocols?category=Lending&limit=3\")",
+      "Bash(python3:*)",
+      "Bash(curl -s -w \"\\nHTTP Status: %{http_code}\\n\" \"http://localhost:3002/api/defi/protocols/lido\")",
+      "Bash(curl -s \"http://localhost:3003/api/defi/yields?limit=3\")",
+      "Bash(curl -s \"http://localhost:3003/api/defi/yields?protocol=aave&limit=5\")",
+      "Bash(curl -s \"http://localhost:3003/api/defi/yields?chain=Ethereum&protocol=aave&limit=3\")",
+      "Bash(curl -s -X POST \"http://localhost:3004/api/defi/prices\" -H \"Content-Type: application/json\" -d '{\n    \"\"\"\"tokens\"\"\"\": [\n      { \"\"\"\"chain\"\"\"\": \"\"\"\"ethereum\"\"\"\", \"\"\"\"address\"\"\"\": \"\"\"\"invalid-address\"\"\"\" }\n    ]\n  }')",
+      "Bash(curl -s -X POST \"http://localhost:3004/api/defi/prices\" -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s -X POST \"http://localhost:3004/api/defi/prices\" -H \"Content-Type: application/json\" -d '{\n    \"\"\"\"tokens\"\"\"\": [\n      { \"\"\"\"chain\"\"\"\": \"\"\"\"ethereum\"\"\"\", \"\"\"\"address\"\"\"\": \"\"\"\"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2\"\"\"\" },\n      { \"\"\"\"chain\"\"\"\": \"\"\"\"ethereum\"\"\"\", \"\"\"\"address\"\"\"\": \"\"\"\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\"\"\"\" },\n      { \"\"\"\"chain\"\"\"\": \"\"\"\"polygon\"\"\"\", \"\"\"\"address\"\"\"\": \"\"\"\"0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270\"\"\"\" }\n    ]\n  }')",
+      "Bash(curl -s \"http://localhost:3005/api/defi/yields?chain=Ethereum&limit=2\")",
+      "Bash(curl -s \"http://localhost:3005/api/defi/protocols?search=aave&limit=2\")",
+      "Bash(pkill:*)",
+      "Bash(curl -s \"http://localhost:3000/api/defi/yields?limit=3\")",
+      "Bash(curl -s \"http://localhost:3000/api/defi/protocols?category=Dexes&limit=3\")",
+      "Bash(curl -s \"http://localhost:3000/api/defi/protocols?limit=20\")",
+      "Bash(chmod:*)",
+      "Bash(bash:*)",
+      "WebSearch",
+      "WebFetch(domain:defillama.com)",
+      "Bash(curl -s \"https://api.llama.fi/chains\")",
+      "Bash(curl -s \"http://localhost:3000/api/defi/chains\")",
+      "Bash(curl -s -X POST \"http://localhost:3000/api/defi/prices\" -H \"Content-Type: application/json\" -d '{\n    \"\"\"\"tokens\"\"\"\": [\n      {\n        \"\"\"\"chain\"\"\"\": \"\"\"\"ethereum\"\"\"\",\n        \"\"\"\"address\"\"\"\": \"\"\"\"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2\"\"\"\"\n      }\n    ]\n  }')",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
