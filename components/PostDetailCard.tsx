@@ -294,9 +294,9 @@ export default function PostDetailCard({
                     <DeFiEmbedPreview
                       key={index}
                       embed={{
-                        type: embed.embed_type,
+                        type: embed.embed_type as 'protocol' | 'yield' | 'token',
                         referenceId: embed.reference_id,
-                        snapshotData: embed.snapshot_data
+                        snapshotData: embed.snapshot_data as never
                       }}
                       compact={true}
                       showLatestDataButton={true}
@@ -373,9 +373,9 @@ export default function PostDetailCard({
                     <DeFiEmbedPreview
                       key={index}
                       embed={{
-                        type: embed.embed_type,
+                        type: embed.embed_type as 'protocol' | 'yield' | 'token',
                         referenceId: embed.reference_id,
-                        snapshotData: embed.snapshot_data
+                        snapshotData: embed.snapshot_data as never
                       }}
                       compact={false}
                       showLatestDataButton={true}
