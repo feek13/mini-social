@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { defillama } from '@/lib/defillama'
+import { ProtocolDetail } from '@/lib/defillama/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600
 
 // 添加内存缓存
-const cache = new Map<string, { data: any; timestamp: number }>()
+const cache = new Map<string, { data: ProtocolDetail; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 分钟
 
 export async function GET(

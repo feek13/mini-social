@@ -14,7 +14,6 @@ import {
   DollarSign,
   BarChart3,
   Users,
-  Activity,
   Zap,
   Info,
   Twitter,
@@ -22,7 +21,9 @@ import {
   Code,
   Shield
 } from 'lucide-react'
-import { formatTVL } from '@/lib/utils'
+
+// TVL 数据项类型
+type TVLDataItem = number | { date?: number; totalLiquidityUSD?: number }
 
 // 动态导入图表组件（懒加载）
 const TVLHistoryChart = dynamic(
@@ -36,10 +37,6 @@ const TVLHistoryChart = dynamic(
     )
   }
 )
-
-const YieldCard = dynamic(() => import('@/components/defi/YieldCard'), {
-  ssr: false
-})
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -92,10 +89,10 @@ export default function ProtocolDetailPage({ params }: PageProps) {
   const chartData = useMemo(() => {
     if (!protocol?.tvl) return []
 
-    return protocol.tvl.map((item: any, index: number) => ({
-      date: item.date || index,
+    return protocol.tvl.map((item: TVLDataItem, index: number) => ({
+      date: typeof item === 'object' && item.date ? item.date : index,
       tvl: typeof item === 'number' ? item : (item.totalLiquidityUSD || 0),
-      timestamp: item.date || Date.now() / 1000 - (protocol.tvl.length - index) * 86400
+      timestamp: typeof item === 'object' && item.date ? item.date : Date.now() / 1000 - (protocol.tvl.length - index) * 86400
     }))
   }, [protocol?.tvl])
 
