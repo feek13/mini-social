@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     // 3. 获取并验证请求数据
     const body = await request.json()
-    const { content, originalPostId, defiEmbeds } = body
+    const { content, originalPostId, defiEmbeds, linkPreview } = body
 
     // 如果是引用转发
     if (originalPostId) {
@@ -298,6 +298,7 @@ export async function POST(request: NextRequest) {
           user_id: user.id,
           content: trimmedContent,
           images: validatedData.images || null,
+          link_preview: linkPreview || null,
         },
       ])
       .select(`

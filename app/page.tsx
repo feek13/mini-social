@@ -119,7 +119,7 @@ export default function Home() {
   }, [user?.id])
 
   // 发布新动态
-  const handlePostSubmit = async (content: string, imageUrls?: string[], originalPostId?: string, defiEmbeds?: unknown[]) => {
+  const handlePostSubmit = async (content: string, imageUrls?: string[], originalPostId?: string, defiEmbeds?: unknown[], linkPreview?: unknown) => {
     try {
       // 获取当前会话的 access token
       const { data: { session } } = await supabase.auth.getSession()
@@ -136,6 +136,7 @@ export default function Home() {
           images: imageUrls,
           originalPostId,
           defiEmbeds,
+          linkPreview,
         }),
       })
 
@@ -343,7 +344,7 @@ export default function Home() {
 
   return (
     <SwipeablePageTransition enableSwipeBack={false}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 overflow-x-hidden">
         {/* 导航栏 */}
         <Navbar />
 
@@ -360,10 +361,10 @@ export default function Home() {
       />
 
       {/* 主内容 */}
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-2xl mx-auto px-4 py-6 overflow-x-hidden w-full">
         {/* 发布框（仅登录用户可见） */}
         {user && (
-          <div className="mb-6">
+          <div id="post-form-container" className="mb-6">
             <PostForm onSubmit={handlePostSubmit} />
           </div>
         )}

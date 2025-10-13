@@ -11,6 +11,7 @@ import Avatar from '@/components/Avatar'
 import ImageViewer from '@/components/ImageViewer'
 import RepostDialog from '@/components/RepostDialog'
 import DeFiEmbedPreview from '@/components/defi/DeFiEmbedPreview'
+import LinkPreview from '@/components/LinkPreview'
 import { supabase } from '@/lib/supabase'
 import { renderText } from '@/lib/textParser'
 
@@ -46,7 +47,8 @@ export default function PostDetailCard({
   const originalAuthorId = post.is_repost && post.original_post
     ? post.original_post.user_id
     : post.user_id
-  const canRepost = user && (hasReposted || user.id !== originalAuthorId)
+  // 判断是否可以转发（允许用户引用自己的帖子，但不能简单转发）
+  const canRepost = user !== null && user !== undefined
 
   // 格式化完整时间
   const formatFullTime = (dateString: string) => {
@@ -83,6 +85,13 @@ export default function PostDetailCard({
     }
 
     if (isReposting) return
+
+    // 检查是否是用户自己的帖子且没有评论（不允许简单转发自己的帖子）
+    if (user.id === originalAuthorId && !comment) {
+      setRepostError('不能转发自己的动态，请使用引用功能添加评论')
+      setTimeout(() => setRepostError(''), 3000)
+      return
+    }
 
     setIsReposting(true)
     try {
@@ -229,8 +238,8 @@ export default function PostDetailCard({
         {/* 原动态或普通动态 */}
         {post.is_repost && post.original_post ? (
           <div
-            className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 cursor-pointer hover:bg-gray-100 transition-colors"
             onClick={() => router.push(`/post/${post.original_post_id}`)}
+            className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 cursor-pointer hover:bg-gray-100 transition-colors"
           >
             {/* 原动态用户信息 */}
             <div className="flex items-start space-x-3 mb-3">
@@ -302,6 +311,17 @@ export default function PostDetailCard({
                     />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* 原动态链接预览显示 */}
+            {post.original_post.link_preview && (
+              <div className="mb-3">
+                <LinkPreview
+                  preview={post.original_post.link_preview}
+                  showRemoveButton={false}
+                  compact={true}
+                />
               </div>
             )}
           </div>
@@ -381,6 +401,16 @@ export default function PostDetailCard({
                     />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* 链接预览显示 */}
+            {post.link_preview && (
+              <div className="mb-4">
+                <LinkPreview
+                  preview={post.link_preview}
+                  showRemoveButton={false}
+                />
               </div>
             )}
 
@@ -494,6 +524,16 @@ export default function PostDetailCard({
           images={post.images}
           initialIndex={selectedImageIndex}
           onClose={() => setShowImageViewer(false)}
+          post={post}
+          isLiked={isLiked}
+          hasReposted={hasReposted}
+          onLike={onLike}
+          onUnlike={onUnlike}
+          onRepost={(_postId, newRepostCount) => {
+            if (onRepost) {
+              onRepost(newRepostCount)
+            }
+          }}
         />
       )}
 

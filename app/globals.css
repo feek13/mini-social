@@ -590,11 +590,13 @@ input:focus, textarea:focus {
 body {
   overflow-x: hidden;
   width: 100%;
+  max-width: 100vw;
   position: relative;
 }
 
 html {
   overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* 隐藏滚动条但保持滚动功能 */
@@ -610,6 +612,12 @@ html {
 /* 防止元素导致横向溢出 */
 * {
   box-sizing: border-box;
+}
+
+/* 确保所有元素不超出视口 */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* 移动端图表优化 */
@@ -676,4 +684,58 @@ html {
   .hover\:text-white:hover {
     color: inherit;
   }
+}
+
+/* ============================================
+   Recharts 图表调试和优化样式
+   ============================================ */
+
+/* 确保 Recharts 容器正确填充 */
+.recharts-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.recharts-surface {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 确保 ResponsiveContainer 正确工作 */
+.recharts-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 防止图表被裁剪 */
+.recharts-line {
+  overflow: visible !important;
+}
+
+/* 确保图表区域正确渲染 */
+.recharts-cartesian-grid {
+  stroke-opacity: 0.5;
+}
+
+/* 工具提示样式优化 */
+.recharts-tooltip-wrapper {
+  z-index: 100;
+  outline: none !important;
+}
+
+/* 修复迷你图表可能的显示问题 */
+.recharts-line-curve {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* 图表动画性能优化 */
+.recharts-layer {
+  will-change: auto;
+}
+
+/* 确保 SVG 正确显示 */
+svg.recharts-surface {
+  display: block;
+  overflow: visible;
 }

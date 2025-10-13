@@ -46,20 +46,22 @@ const Avatar = memo(function Avatar({
   // 如果有头像 URL（自定义或模版生成的），且图片未加载失败，显示图片
   if (displayAvatar && !imageError) {
     return (
-      <Image
-        src={displayAvatar}
-        alt={username || '用户头像'}
-        width={size === 'xs' ? 24 : size === 'sm' ? 32 : size === 'md' ? 40 : size === 'lg' ? 48 : 64}
-        height={size === 'xs' ? 24 : size === 'sm' ? 32 : size === 'md' ? 40 : size === 'lg' ? 48 : 64}
-        onError={() => setImageError(true)}
-        className={cn(
-          'rounded-full object-cover flex-shrink-0',
-          sizeClasses[size],
-          className
-        )}
-        unoptimized // DiceBear SVG 不需要优化
-        loading="lazy" // 懒加载
-      />
+      <div className={cn(
+        'rounded-full overflow-hidden flex-shrink-0 bg-gray-100',
+        sizeClasses[size],
+        className
+      )}>
+        <Image
+          src={displayAvatar}
+          alt={username || '用户头像'}
+          width={size === 'xs' ? 24 : size === 'sm' ? 32 : size === 'md' ? 40 : size === 'lg' ? 48 : 64}
+          height={size === 'xs' ? 24 : size === 'sm' ? 32 : size === 'md' ? 40 : size === 'lg' ? 48 : 64}
+          onError={() => setImageError(true)}
+          className="w-full h-full object-cover"
+          unoptimized // DiceBear SVG 不需要优化
+          loading="lazy" // 懒加载
+        />
+      </div>
     )
   }
 

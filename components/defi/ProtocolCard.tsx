@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { ArrowUpRight, ArrowDownRight, TrendingUp, ArrowRight } from 'lucide-react'
 import { Protocol } from '@/lib/defillama/types'
 import { formatTVL, formatChange, getChangeColor } from '@/lib/utils'
-import MiniTrendChart from '@/components/defi/charts/MiniTrendChart'
 
 interface ProtocolCardProps {
   protocol: Protocol
@@ -17,13 +16,10 @@ export default function ProtocolCard({ protocol }: ProtocolCardProps) {
   const displayChains = chains.slice(0, 3)
   const remainingChains = chains.length - 3
 
-  const miniChartData = Array.from({ length: 30 }, () => ({
-    tvl: tvl * (0.8 + Math.random() * 0.4)
-  }))
-
   return (
-    <Link href={`/defi/protocol/${slug}`}>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-lg hover:border-blue-200 transition-all animate-fade-in-up cursor-pointer group">
+    <Link href={`/defi/protocol/${slug}`} className="block">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-lg hover:border-blue-200 transition-all cursor-pointer group h-full flex flex-col">
+        {/* 顶部：Logo + 名称 + 分类 */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-start space-x-3 flex-1 min-w-0">
             <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2 transition">
@@ -55,6 +51,7 @@ export default function ProtocolCard({ protocol }: ProtocolCardProps) {
           </div>
         </div>
 
+        {/* 中间：TVL 和变化 */}
         <div className="mb-4 pb-4 border-b border-gray-100">
           <div className="mb-3">
             <div className="flex items-center space-x-2 mb-1">
@@ -93,11 +90,8 @@ export default function ProtocolCard({ protocol }: ProtocolCardProps) {
           </div>
         </div>
 
-        <div className="mb-4">
-          <MiniTrendChart data={miniChartData} color="#3B82F6" height={50} />
-        </div>
-
-        <div className="space-y-3">
+        {/* 底部：支持的链 + 查看详情按钮 */}
+        <div className="space-y-3 mt-auto">
           {chains.length > 0 && (
             <div>
               <span className="text-xs text-gray-500 font-medium mb-2 block">Chains</span>

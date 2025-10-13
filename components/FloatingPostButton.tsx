@@ -5,33 +5,60 @@ import { Feather } from 'lucide-react'
 
 interface FloatingPostButtonProps {
   onClick: () => void
+  targetId?: string // 要监听的目标元素 ID
 }
 
-export default function FloatingPostButton({ onClick }: FloatingPostButtonProps) {
+export default function FloatingPostButton({ onClick, targetId = 'post-form-container' }: FloatingPostButtonProps) {
   const [isVisible, setIsVisible] = useState(false)
+  // v2024-01-13 - 强制浏览器重新加载
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout
+    // 找到要监听的目标元素
+    const targetElement = document.getElementById(targetId)
 
-    const handleScroll = () => {
-      // 清除之前的定时器
-      clearTimeout(timeoutId)
-
-      // 设置新的定时器 - 防抖优化
-      timeoutId = setTimeout(() => {
-        // 当滚动超过 300px 时显示按钮
-        setIsVisible(window.scrollY > 300)
-      }, 100)
+    if (!targetElement) {
+      console.warn(`FloatingPostButton: 找不到目标元素 #${targetId}`)
+      return
     }
 
-    // 监听滚动事件，passive 优化性能
+    // 检查元素是否在视口内（考虑导航栏高度）
+    const checkVisibility = () => {
+      const rect = targetElement.getBoundingClientRect()
+      const navbarHeight = 64 // h-16 = 64px
+      const buffer = 16 // 缓冲区，让按钮更早出现（大约滚动16px后就显示）
+
+      // 判断元素是否完全可见：
+      // - 如果元素顶部还在 navbarHeight + buffer 以下，说明完全可见，不显示按钮
+      // - 如果元素顶部到达或超过 navbarHeight + buffer，说明接近被遮挡，显示按钮
+      const threshold = navbarHeight + buffer
+      const isElementFullyVisible = rect.top > threshold
+
+      // 元素不完全可见时显示悬浮按钮
+      setIsVisible(!isElementFullyVisible)
+    }
+
+    // 初始检查
+    checkVisibility()
+
+    // 监听滚动事件
+    let rafId: number
+    const handleScroll = () => {
+      // 使用 requestAnimationFrame 优化性能
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
+      rafId = requestAnimationFrame(checkVisibility)
+    }
+
     window.addEventListener('scroll', handleScroll, { passive: true })
 
     return () => {
-      clearTimeout(timeoutId)
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [])
+  }, [targetId])
 
   // 如果不可见，不渲染
   if (!isVisible) return null

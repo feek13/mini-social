@@ -93,25 +93,41 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
 
   // 确保组件已挂载到 DOM
   useEffect(() => {
+    console.log('[DeFiEmbedPicker] Component mounting...')
     setMounted(true)
-    return () => setMounted(false)
+    return () => {
+      console.log('[DeFiEmbedPicker] Component unmounting...')
+      setMounted(false)
+    }
   }, [])
 
   // 加载推荐数据（考虑筛选条件和排序）
   useEffect(() => {
+    console.log('[DeFiEmbedPicker] useEffect triggered', { mounted, activeTab })
     if (!mounted) return
 
     const loadRecommendations = async () => {
       if (activeTab === 'protocol') {
         // 加载热门协议
+        console.log('[DeFiEmbedPicker] Loading protocols...')
         try {
           const params = new URLSearchParams()
           params.append('limit', '50') // 获取更多数据用于排序
           if (protocolCategory) params.append('category', protocolCategory)
           if (protocolChain) params.append('chain', protocolChain)
 
-          const response = await fetch(`/api/defi/protocols?${params}`)
+          const url = `/api/defi/protocols?${params}`
+          console.log('[DeFiEmbedPicker] Fetching:', url)
+
+          const response = await fetch(url)
           const data = await response.json()
+
+          console.log('[DeFiEmbedPicker] Response:', {
+            ok: response.ok,
+            status: response.status,
+            protocolsCount: data.protocols?.length
+          })
+
           if (response.ok && data.protocols) {
             // 客户端排序
             const sorted = [...data.protocols].sort((a: Protocol, b: Protocol) => {
@@ -121,21 +137,35 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
                 return (a.tvl || 0) - (b.tvl || 0)
               }
             })
+            console.log('[DeFiEmbedPicker] Setting protocols:', sorted.slice(0, 20).length)
             setProtocols(sorted.slice(0, 20))
+          } else {
+            console.error('[DeFiEmbedPicker] Invalid response:', data)
           }
         } catch (err) {
-          console.error('加载推荐协议失败:', err)
+          console.error('[DeFiEmbedPicker] 加载推荐协议失败:', err)
         }
       } else if (activeTab === 'yield') {
         // 加载高收益池
+        console.log('[DeFiEmbedPicker] Loading yields...')
         try {
           const params = new URLSearchParams()
           params.append('limit', '50') // 获取更多数据用于排序
           if (yieldMinApy > 0) params.append('minApy', yieldMinApy.toString())
           if (yieldChain) params.append('chain', yieldChain)
 
-          const response = await fetch(`/api/defi/yields?${params}`)
+          const url = `/api/defi/yields?${params}`
+          console.log('[DeFiEmbedPicker] Fetching:', url)
+
+          const response = await fetch(url)
           const data = await response.json()
+
+          console.log('[DeFiEmbedPicker] Response:', {
+            ok: response.ok,
+            status: response.status,
+            poolsCount: data.pools?.length
+          })
+
           if (response.ok && data.pools) {
             // 客户端排序
             const sorted = [...data.pools].sort((a: YieldPool, b: YieldPool) => {
@@ -145,10 +175,13 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
                 return (a.apy || 0) - (b.apy || 0)
               }
             })
+            console.log('[DeFiEmbedPicker] Setting yields:', sorted.slice(0, 20).length)
             setYields(sorted.slice(0, 20))
+          } else {
+            console.error('[DeFiEmbedPicker] Invalid response:', data)
           }
         } catch (err) {
-          console.error('加载推荐收益池失败:', err)
+          console.error('[DeFiEmbedPicker] 加载推荐收益池失败:', err)
         }
       }
     }
@@ -274,16 +307,24 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
       }
 
       // API 返回的 key 是小写的，需要转换匹配
-      const tokenKey = `${tokenChain}:${tokenAddress.trim().toLowerCase()}`
+      const normalizedChain = tokenChain.trim().toLowerCase()
+      const normalizedAddress = tokenAddress.trim().toLowerCase()
+      const tokenKey = `${normalizedChain}:${normalizedAddress}`
       const priceData = data.prices[tokenKey]
 
       if (!priceData) {
-        throw new Error('未找到该代币价格')
+        // 检查是否在 missing 列表中
+        if (data.missing && data.missing.includes(tokenKey)) {
+          throw new Error('该代币暂无价格数据')
+        } else {
+          throw new Error('未找到该代币价格')
+        }
       }
 
+      // 保存时使用小写，确保与 API 返回的 key 一致
       setTokenData({
-        chain: tokenChain,
-        address: tokenAddress.trim(),
+        chain: normalizedChain,
+        address: normalizedAddress,
         symbol: priceData.symbol,
         price: priceData.price,
         decimals: priceData.decimals,

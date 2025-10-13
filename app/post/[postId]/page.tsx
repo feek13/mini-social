@@ -97,6 +97,7 @@ export async function generateMetadata({
 
     const title = `${displayUsername}: ${displayContent.substring(0, 100)}${displayContent.length > 100 ? '...' : ''} - MiniSocial`
     const description = displayContent.substring(0, 160)
+    const url = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/post/${postId}`
 
     return {
       title,
@@ -104,9 +105,12 @@ export async function generateMetadata({
       openGraph: {
         title,
         description,
+        url,
+        siteName: 'MiniSocial',
         type: 'article',
         publishedTime: post.created_at,
         authors: [post.user?.username || '未知用户'],
+        locale: 'zh_CN',
         images: post.images && post.images.length > 0 ? [
           {
             url: post.images[0],

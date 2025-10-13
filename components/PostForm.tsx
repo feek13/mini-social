@@ -10,9 +10,11 @@ import { Post } from '@/types/database'
 import { formatRelativeTime } from '@/lib/utils'
 import DeFiEmbedPicker, { DeFiEmbed } from '@/components/defi/DeFiEmbedPicker'
 import DeFiEmbedPreview from '@/components/defi/DeFiEmbedPreview'
+import LinkPreview, { LinkPreviewLoading } from '@/components/LinkPreview'
+import { LinkPreviewData } from '@/app/api/link-preview/route'
 
 interface PostFormProps {
-  onSubmit: (content: string, imageUrls?: string[], originalPostId?: string, defiEmbeds?: DeFiEmbed[]) => Promise<void>
+  onSubmit: (content: string, imageUrls?: string[], originalPostId?: string, defiEmbeds?: DeFiEmbed[], linkPreview?: LinkPreviewData) => Promise<void>
   placeholder?: string
 }
 
@@ -20,6 +22,8 @@ const MAX_CHARACTERS = 280
 const MAX_IMAGES = 9
 const MAX_DEFI_EMBEDS = 3
 const POST_LINK_REGEX = /(?:https?:\/\/[^\s/]+)?\/post\/([a-f0-9-]+)/i
+// 通用 URL 正则表达式
+const URL_REGEX = /(https?:\/\/[^\s]+)/gi
 
 export default function PostForm({
   onSubmit,
@@ -46,8 +50,12 @@ export default function PostForm({
   const [defiEmbeds, setDefiEmbeds] = useState<DeFiEmbed[]>([])
   const [showDefiPicker, setShowDefiPicker] = useState(false)
 
+  // 链接预览相关状态
+  const [linkPreview, setLinkPreview] = useState<LinkPreviewData | null>(null)
+  const [isLoadingLinkPreview, setIsLoadingLinkPreview] = useState(false)
+
   const remainingChars = MAX_CHARACTERS - content.length
-  const isValid = (content.trim().length > 0 || selectedImages.length > 0 || quotedPost || defiEmbeds.length > 0) && remainingChars >= 0
+  const isValid = (content.trim().length > 0 || selectedImages.length > 0 || quotedPost || defiEmbeds.length > 0 || linkPreview) && remainingChars >= 0
 
   // 清理函数：组件卸载时重置拖拽状态
   useEffect(() => {
@@ -57,13 +65,18 @@ export default function PostForm({
     }
   }, [])
 
-  // 检测链接并加载引用动态
+  // 检测链接并加载引用动态或链接预览
   useEffect(() => {
-    const checkForPostLink = async () => {
-      const match = content.match(POST_LINK_REGEX)
+    const checkForLinks = async () => {
+      // 优先级1：检测帖子链接（引用功能）
+      const postMatch = content.match(POST_LINK_REGEX)
 
-      if (match) {
-        const postId = match[1]
+      if (postMatch) {
+        const postId = postMatch[1]
+
+        // 清除链接预览（因为帖子引用优先级更高）
+        setLinkPreview(null)
+        setIsLoadingLinkPreview(false)
 
         // 获取原动态数据
         setIsLoadingQuote(true)
@@ -81,13 +94,40 @@ export default function PostForm({
         } finally {
           setIsLoadingQuote(false)
         }
+        return
       } else {
         setQuotedPost(null)
+      }
+
+      // 优先级2：检测普通链接（链接预览）
+      const urls = content.match(URL_REGEX)
+
+      if (urls && urls.length > 0) {
+        // 只获取第一个链接的预览
+        const url = urls[0]
+
+        setIsLoadingLinkPreview(true)
+        try {
+          const response = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+          if (response.ok) {
+            const data: LinkPreviewData = await response.json()
+            setLinkPreview(data)
+          } else {
+            setLinkPreview(null)
+          }
+        } catch (error) {
+          console.error('获取链接预览失败:', error)
+          setLinkPreview(null)
+        } finally {
+          setIsLoadingLinkPreview(false)
+        }
+      } else {
+        setLinkPreview(null)
       }
     }
 
     // 防抖
-    const timeoutId = setTimeout(checkForPostLink, 500)
+    const timeoutId = setTimeout(checkForLinks, 500)
     return () => clearTimeout(timeoutId)
   }, [content])
 
@@ -316,7 +356,8 @@ export default function PostForm({
         finalContent,
         imageUrls.length > 0 ? imageUrls : undefined,
         quotedPost?.id,
-        defiEmbeds.length > 0 ? defiEmbeds : undefined
+        defiEmbeds.length > 0 ? defiEmbeds : undefined,
+        linkPreview || undefined
       )
 
       // 清空状态
@@ -325,6 +366,7 @@ export default function PostForm({
       setImagePreviewUrls([])
       setQuotedPost(null)
       setDefiEmbeds([])
+      setLinkPreview(null)
       setIsFocused(false)
 
       // 清理预览 URL
@@ -462,6 +504,23 @@ export default function PostForm({
               </div>
             )}
 
+            {/* 链接预览 */}
+            {isLoadingLinkPreview && (
+              <div className="mt-3">
+                <LinkPreviewLoading />
+              </div>
+            )}
+
+            {linkPreview && !quotedPost && (
+              <div className="mt-3">
+                <LinkPreview
+                  preview={linkPreview}
+                  onRemove={() => setLinkPreview(null)}
+                  showRemoveButton={true}
+                />
+              </div>
+            )}
+
             {/* 图片预览网格 */}
             {imagePreviewUrls.length > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -550,7 +609,10 @@ export default function PostForm({
                 {/* DeFi 数据按钮 */}
                 <button
                   type="button"
-                  onClick={() => setShowDefiPicker(true)}
+                  onClick={() => {
+                    console.log('[PostForm] DeFi button clicked')
+                    setShowDefiPicker(true)
+                  }}
                   disabled={loading || defiEmbeds.length >= MAX_DEFI_EMBEDS}
                   className={`flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                     defiEmbeds.length >= MAX_DEFI_EMBEDS
@@ -573,8 +635,8 @@ export default function PostForm({
                 {/* 字符计数 */}
                 {content.length > 0 && (
                   <>
-                    <div className="relative w-8 h-8">
-                      <svg className="transform -rotate-90 w-8 h-8">
+                    <div className="relative w-8 h-8 flex-shrink-0">
+                      <svg className="transform -rotate-90 w-8 h-8" viewBox="0 0 32 32">
                         <circle
                           cx="16"
                           cy="16"
@@ -661,13 +723,20 @@ export default function PostForm({
 
       {/* DeFi 数据选择器 Modal */}
       {showDefiPicker && (
-        <DeFiEmbedPicker
-          onSelect={(embed) => {
-            setDefiEmbeds(prev => [...prev, embed])
-            setShowDefiPicker(false)
-          }}
-          onClose={() => setShowDefiPicker(false)}
-        />
+        <>
+          {console.log('[PostForm] Rendering DeFiEmbedPicker')}
+          <DeFiEmbedPicker
+            onSelect={(embed) => {
+              console.log('[PostForm] DeFi embed selected:', embed)
+              setDefiEmbeds(prev => [...prev, embed])
+              setShowDefiPicker(false)
+            }}
+            onClose={() => {
+              console.log('[PostForm] DeFi picker closed')
+              setShowDefiPicker(false)
+            }}
+          />
+        </>
       )}
     </div>
   )

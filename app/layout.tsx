@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   keywords: ["社交平台", "动态分享", "MiniSocial", "社交网络"],
   authors: [{ name: "MiniSocial Team" }],
   creator: "MiniSocial",
-  metadataBase: new URL("https://minisocial.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"),
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -35,10 +35,18 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "zh_CN",
-    url: "https://minisocial.app",
+    url: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
     title: "MiniSocial - 迷你社交平台",
     description: "一个简洁优雅的迷你社交平台，分享你的想法，与朋友互动",
     siteName: "MiniSocial",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "MiniSocial - 迷你社交平台",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

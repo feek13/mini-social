@@ -12,6 +12,7 @@ import ImageViewer from '@/components/ImageViewer'
 import RepostDialog from '@/components/RepostDialog'
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog'
 import DeFiEmbedPreview from '@/components/defi/DeFiEmbedPreview'
+import LinkPreview from '@/components/LinkPreview'
 import { formatRelativeTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { renderText } from '@/lib/textParser'
@@ -43,6 +44,7 @@ const PostCard = memo(function PostCard({
   const [likeAnimating, setLikeAnimating] = useState(false)
   const [showImageViewer, setShowImageViewer] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [viewerImages, setViewerImages] = useState<string[]>([])
   const [showRepostDialog, setShowRepostDialog] = useState(false)
   const [repostAnimating, setRepostAnimating] = useState(false)
   const [showRepostMenu, setShowRepostMenu] = useState(false)
@@ -76,8 +78,8 @@ const PostCard = memo(function PostCard({
     ? post.original_post.user_id
     : post.user_id
 
-  // 判断是否可以转发（不能转发自己原创的帖子，但可以取消已转发的帖子）
-  const canRepost = user && (hasReposted || user.id !== originalAuthorId)
+  // 判断是否可以转发（允许用户引用自己的帖子，但不能简单转发）
+  const canRepost = user !== null && user !== undefined
 
   // 点击外部关闭转发菜单
   useEffect(() => {
@@ -160,6 +162,13 @@ const PostCard = memo(function PostCard({
     }
 
     if (isReposting) return
+
+    // 检查是否是用户自己的帖子且没有评论（不允许简单转发自己的帖子）
+    if (user.id === originalAuthorId && !comment) {
+      setRepostError('不能转发自己的动态，请使用引用功能添加评论')
+      setTimeout(() => setRepostError(''), 3000)
+      return
+    }
 
     setIsReposting(true)
     try {
@@ -297,20 +306,21 @@ const PostCard = memo(function PostCard({
     setShowRepostMenu(true)
   }
 
-  // 点击卡片进入详情页
+  // 卡片点击处理
   const handleCardClick = (e: React.MouseEvent) => {
-    // 如果点击的是按钮、链接或输入框，不触发跳转
+    // 如果点击的是链接、按钮或其他交互元素，不处理
     const target = e.target as HTMLElement
     if (
       target.closest('button') ||
       target.closest('a') ||
+      target.closest('input') ||
       target.closest('textarea') ||
-      target.closest('input')
+      target.closest('[role="button"]')
     ) {
       return
     }
 
-    // 跳转到详情页
+    // 跳转到动态详情页
     router.push(`/post/${post.id}`)
   }
 
@@ -322,7 +332,8 @@ const PostCard = memo(function PostCard({
       return
     }
 
-    // 阻止事件冒泡到外层卡片
+    // 阻止事件冒泡到外层卡片并防止默认行为
+    e.preventDefault()
     e.stopPropagation()
 
     // 跳转到原帖详情页
@@ -352,16 +363,7 @@ const PostCard = memo(function PostCard({
 
       {/* 转发评论（如果有） */}
       {post.is_repost && post.repost_comment && (
-        <div
-          onClick={(e) => {
-            // 如果点击的是链接，不要导航到动态详情页
-            if ((e.target as HTMLElement).closest('a')) {
-              return
-            }
-            router.push(`/post/${post.id}`)
-          }}
-          className="block mb-4 ml-0 sm:ml-[52px] cursor-pointer hover:bg-gray-50 -mx-4 px-4 py-2 transition"
-        >
+        <div className="block mb-4 ml-0 sm:ml-[52px] -mx-4 px-4 py-2">
           <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
             {renderText(post.repost_comment)}
           </p>
@@ -406,16 +408,7 @@ const PostCard = memo(function PostCard({
           </div>
 
           {/* 原动态内容 */}
-          <div
-            onClick={(e) => {
-              // 如果点击的是链接，不要导航到动态详情页
-              if ((e.target as HTMLElement).closest('a')) {
-                return
-              }
-              router.push(`/post/${post.original_post_id}`)
-            }}
-            className="block mb-3 cursor-pointer hover:bg-white -mx-2 px-2 py-1 transition rounded"
-          >
+          <div className="block mb-3 -mx-2 px-2 py-1">
             <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed">
               {renderText(post.original_post.content)}
             </p>
@@ -428,13 +421,20 @@ const PostCard = memo(function PostCard({
                 {post.original_post.images.slice(0, 4).map((img, index) => (
                   <div
                     key={index}
-                    className="relative aspect-square rounded overflow-hidden"
+                    className="relative aspect-square rounded overflow-hidden cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setViewerImages(post.original_post?.images || [])
+                      setSelectedImageIndex(index)
+                      setShowImageViewer(true)
+                    }}
                   >
                     <Image
                       src={img}
                       alt={`图片 ${index + 1}`}
                       fill
-                      className="object-cover"
+                      className="object-cover hover:scale-105 transition-transform"
                       unoptimized
                     />
                   </div>
@@ -509,7 +509,11 @@ const PostCard = memo(function PostCard({
             {/* 删除按钮（仅所有者可见） */}
             {isOwner && onDelete && (
               <button
-                onClick={handleDeleteClick}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleDeleteClick()
+                }}
                 disabled={isDeleting}
                 className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all p-2 rounded-full active:scale-95 flex-shrink-0"
                 title="删除动态"
@@ -520,16 +524,7 @@ const PostCard = memo(function PostCard({
           </div>
 
           {/* 内容 */}
-          <div
-            onClick={(e) => {
-              // 如果点击的是链接，不要导航到动态详情页
-              if ((e.target as HTMLElement).closest('a')) {
-                return
-              }
-              router.push(`/post/${post.id}`)
-            }}
-            className="block mb-4 ml-0 sm:ml-[52px] cursor-pointer hover:bg-gray-50 -mx-4 px-4 py-2 transition rounded"
-          >
+          <div className="block mb-4 ml-0 sm:ml-[52px] -mx-4 px-4 py-2">
             <p className="text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
               {renderText(post.content)}
             </p>
@@ -543,7 +538,10 @@ const PostCard = memo(function PostCard({
           {/* 根据图片数量显示不同布局 */}
           {post.images.length === 1 && (
             <div className="relative w-full max-w-md aspect-video rounded-lg overflow-hidden cursor-pointer"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setViewerImages(post.images || [])
                 setSelectedImageIndex(0)
                 setShowImageViewer(true)
               }}
@@ -564,7 +562,10 @@ const PostCard = memo(function PostCard({
                 <div
                   key={index}
                   className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setViewerImages(post.images || [])
                     setSelectedImageIndex(index)
                     setShowImageViewer(true)
                   }}
@@ -585,7 +586,10 @@ const PostCard = memo(function PostCard({
             <div className="grid grid-cols-2 gap-2">
               <div
                 className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setViewerImages(post.images || [])
                   setSelectedImageIndex(0)
                   setShowImageViewer(true)
                 }}
@@ -603,7 +607,10 @@ const PostCard = memo(function PostCard({
                   <div
                     key={index}
                     className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setViewerImages(post.images || [])
                       setSelectedImageIndex(index + 1)
                       setShowImageViewer(true)
                     }}
@@ -627,7 +634,10 @@ const PostCard = memo(function PostCard({
                 <div
                   key={index}
                   className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setViewerImages(post.images || [])
                     setSelectedImageIndex(index)
                     setShowImageViewer(true)
                   }}
@@ -650,7 +660,10 @@ const PostCard = memo(function PostCard({
                 <div
                   key={index}
                   className="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setViewerImages(post.images || [])
                     setSelectedImageIndex(index)
                     setShowImageViewer(true)
                   }}
@@ -689,6 +702,16 @@ const PostCard = memo(function PostCard({
         </div>
       )}
 
+      {/* 链接预览显示 */}
+      {post.link_preview && (
+        <div className="mb-4 ml-0 sm:ml-[52px]">
+          <LinkPreview
+            preview={post.link_preview}
+            showRemoveButton={false}
+          />
+        </div>
+      )}
+
       {/* 未登录提示 */}
       {!user && (
         <div className="mb-3 ml-0 sm:ml-[52px] px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -705,7 +728,11 @@ const PostCard = memo(function PostCard({
       <div className="flex items-center space-x-4 sm:space-x-8 pt-3 border-t border-gray-100 ml-0 sm:ml-[52px]">
         {/* 点赞按钮 */}
         <button
-          onClick={handleLike}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            handleLike()
+          }}
           disabled={!user}
           className={`flex items-center space-x-2 transition-all group ${
             isLiked
@@ -727,6 +754,7 @@ const PostCard = memo(function PostCard({
         {/* 评论按钮 */}
         <button
           onClick={(e) => {
+            e.preventDefault()
             e.stopPropagation()
             if (!user) {
               setShowLoginPrompt(true)
@@ -744,7 +772,11 @@ const PostCard = memo(function PostCard({
         {/* 转发按钮 */}
         <div className="relative" ref={repostMenuRef}>
           <button
-            onClick={handleRepostClick}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleRepostClick()
+            }}
             onContextMenu={handleRepostContextMenu}
             disabled={!canRepost || isReposting}
             className={`flex items-center space-x-2 transition-all group ${
@@ -755,7 +787,7 @@ const PostCard = memo(function PostCard({
             title={
               !user ? '请先登录' :
               hasReposted ? '左键取消转发 | 右键复制链接' :
-              user.id === originalAuthorId ? '不能转发自己的动态' :
+              user.id === originalAuthorId ? '不能简单转发自己的动态，右键复制链接引用' :
               '左键转发 | 右键复制链接引用'
             }
           >
@@ -788,7 +820,11 @@ const PostCard = memo(function PostCard({
             <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 min-w-[160px] z-50 animate-scale-in">
               {!hasReposted && (
                 <button
-                  onClick={handleDirectRepost}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleDirectRepost()
+                  }}
                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
                 >
                   <Repeat2 className="w-4 h-4 text-green-500" />
@@ -796,7 +832,11 @@ const PostCard = memo(function PostCard({
                 </button>
               )}
               <button
-                onClick={handleCopyLink}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleCopyLink()
+                }}
                 className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
               >
                 <LinkIcon className="w-4 h-4 text-blue-500" />
@@ -807,13 +847,20 @@ const PostCard = memo(function PostCard({
         </div>
       </div>
 
-      {/* 图片查看器 */}
-      {showImageViewer && post.images && post.images.length > 0 && (
+      {/* 图片查看器 - 使用 Portal 渲染到 body */}
+      {isMounted && showImageViewer && viewerImages.length > 0 && createPortal(
         <ImageViewer
-          images={post.images}
+          images={viewerImages}
           initialIndex={selectedImageIndex}
           onClose={() => setShowImageViewer(false)}
-        />
+          post={post}
+          isLiked={isLiked}
+          hasReposted={hasReposted}
+          onLike={onLike}
+          onUnlike={onUnlike}
+          onRepost={onRepost}
+        />,
+        document.body
       )}
 
       {/* 转发对话框 */}

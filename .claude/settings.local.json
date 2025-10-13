@@ -33,7 +33,11 @@
       "Bash(npx eslint:*)",
       "Bash(lsof:*)",
       "Bash(curl -s -o /dev/null -w \"HTTP Status: %{http_code}\\n\" http://localhost:3000/)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl -s \"http://localhost:3000/defi\")",
+      "Read(//Users/hxt/vibecode/**)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

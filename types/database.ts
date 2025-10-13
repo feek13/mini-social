@@ -25,12 +25,23 @@ export type Post = {
   is_repost: boolean // 是否为转发
   original_post_id?: string // 原动态ID
   repost_comment?: string // 转发时的评论
+  link_preview?: LinkPreview // 链接预览数据
   created_at: string
   user?: Profile
   original_post?: Post // 原动态信息（嵌套）
   hashtags?: Hashtag[]       // 关联的话题标签
   mentions?: Mention[]       // 提及的用户
   defi_embeds?: DeFiEmbed[]  // DeFi 嵌入数据
+}
+
+// 链接预览类型
+export type LinkPreview = {
+  url: string
+  title?: string
+  description?: string
+  image?: string
+  siteName?: string
+  favicon?: string
 }
 
 // DeFi 嵌入数据类型

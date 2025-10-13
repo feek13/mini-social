@@ -622,7 +622,7 @@ export default function DeFiPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 overflow-x-hidden">
         {/* 页面标题 */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-4">
@@ -652,8 +652,8 @@ export default function DeFiPage() {
         )}
 
         {/* Tab 导航 */}
-        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-2 overflow-x-auto">
-          <div className="flex gap-2 min-w-max">
+        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-2">
+          <div className="flex gap-2 min-w-max sm:min-w-0">
             <button
               onClick={() => setActiveTab('protocols')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
@@ -694,7 +694,7 @@ export default function DeFiPage() {
         {activeTab === 'protocols' && (
           <>
             {/* 快捷筛选按钮 */}
-            <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+            <div className="mb-4 flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
               {PROTOCOL_QUICK_FILTERS.map((filter, index) => {
                 const Icon = filter.icon
                 return (
@@ -1103,7 +1103,7 @@ export default function DeFiPage() {
         {activeTab === 'yields' && (
           <>
             {/* 快捷筛选按钮 */}
-            <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+            <div className="mb-4 flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
               {YIELD_QUICK_FILTERS.map((filter, index) => {
                 const Icon = filter.icon
                 return (

@@ -274,3 +274,55 @@ export function formatTimestamp(timestamp: number): string {
     hour12: false,
   })
 }
+
+/**
+ * 获取区块链浏览器 URL（根据链和代币地址）
+ * @param chain 链名称（小写）
+ * @param address 代币合约地址
+ * @returns 区块链浏览器 URL
+ *
+ * @example
+ * getBlockExplorerUrl('ethereum', '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2')
+ * // => "https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+ */
+export function getBlockExplorerUrl(chain: string, address: string): string {
+  const chainLower = chain.toLowerCase()
+
+  // 区块链浏览器映射表
+  const explorerMap: Record<string, string> = {
+    ethereum: 'https://etherscan.io',
+    eth: 'https://etherscan.io',
+    bsc: 'https://bscscan.com',
+    binance: 'https://bscscan.com',
+    polygon: 'https://polygonscan.com',
+    matic: 'https://polygonscan.com',
+    arbitrum: 'https://arbiscan.io',
+    optimism: 'https://optimistic.etherscan.io',
+    avalanche: 'https://snowtrace.io',
+    avax: 'https://snowtrace.io',
+    fantom: 'https://ftmscan.com',
+    ftm: 'https://ftmscan.com',
+    base: 'https://basescan.org',
+    celo: 'https://celoscan.io',
+    moonbeam: 'https://moonscan.io',
+    moonriver: 'https://moonriver.moonscan.io',
+    gnosis: 'https://gnosisscan.io',
+    xdai: 'https://gnosisscan.io',
+    harmony: 'https://explorer.harmony.one',
+    one: 'https://explorer.harmony.one',
+    cronos: 'https://cronoscan.com',
+    aurora: 'https://aurorascan.dev',
+    metis: 'https://andromeda-explorer.metis.io',
+    kava: 'https://explorer.kava.io',
+    klaytn: 'https://scope.klaytn.com',
+  }
+
+  const explorerBaseUrl = explorerMap[chainLower]
+
+  if (explorerBaseUrl) {
+    return `${explorerBaseUrl}/token/${address}`
+  }
+
+  // 如果没有匹配的浏览器，返回 DeFiLlama 链页面作为备用
+  return `https://defillama.com/chain/${chain}`
+}
