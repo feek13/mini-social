@@ -19,6 +19,12 @@
 - #️⃣ **标签系统** - 话题标签支持，点击查看相关动态
 - 📢 **提及功能** - @用户提及，自动补全建议
 - 👤 **个人主页** - 展示用户信息、动态、统计数据
+- 📊 **DeFi 数据浏览器** - 集成 DeFiLlama API，链上数据实时查询
+  - 1000+ 协议数据（TVL、分类、链、24h变化）
+  - 收益率池子（APY 查询、筛选、排序）
+  - 代币价格（WebSocket 实时推送、历史价格、批量查询）
+  - 数据可视化（TVL 图表、趋势图、协议对比）
+  - 高级筛选（多维度筛选、自定义排序）
 
 ### 用户体验
 - 🎨 **现代化 UI** - 简洁优雅的界面设计
@@ -38,7 +44,10 @@
 - **动画**: Framer Motion
 - **图标**: Lucide React
 - **验证**: Zod
-- **工具**: Lodash, DOMPurify
+- **数据获取**: React Query (TanStack Query)
+- **图表**: Recharts
+- **工具**: Lodash, DOMPurify, React Intersection Observer
+- **实时数据**: Binance WebSocket (价格推送)
 
 ### 后端
 - **数据库**: Supabase (PostgreSQL)
@@ -99,6 +108,9 @@ supabase-migration-fix-counts.sql
 
 # 5. 标签和提及功能
 supabase-migration-hashtags-mentions.sql
+
+# 6. DeFi 数据缓存表（可选，用于 DeFi 功能）
+supabase-migration-defillama.sql
 ```
 
 5. **启动开发服务器**
@@ -116,6 +128,10 @@ npm run dev
 | `npm run build` | 构建生产版本 |
 | `npm run start` | 启动生产服务器 |
 | `npm run lint` | 运行 ESLint 检查 |
+| `npm run test:defillama` | 测试 DeFiLlama API 客户端 (TypeScript) |
+| `npm run test:defillama:full` | 完整集成测试（包含所有 API 端点） |
+| `npm run test:defillama:quick` | 快速测试（bash 脚本） |
+| `npm run test:frontend` | 前端 DeFi 功能测试 |
 
 ## 🌍 部署到 Vercel
 
@@ -167,12 +183,20 @@ mini-social/
 │   │   ├── notifications/      # 通知相关
 │   │   ├── search/             # 搜索功能
 │   │   ├── hashtags/           # 标签功能
-│   │   └── mentions/           # 提及功能
+│   │   ├── mentions/           # 提及功能
+│   │   └── defi/               # DeFi 数据 API
+│   │       ├── protocols/      # 协议数据
+│   │       ├── yields/         # 收益率数据
+│   │       ├── prices/         # 代币价格
+│   │       └── chains/         # 链数据
 │   ├── post/                   # 动态详情页
 │   ├── profile/                # 个人主页
 │   ├── search/                 # 搜索页面
 │   ├── trending/               # 热门动态
 │   ├── hashtag/                # 标签页面
+│   ├── defi/                   # DeFi 数据浏览器
+│   │   ├── page.tsx            # DeFi 主页（协议/收益率/价格）
+│   │   └── protocol/[slug]/    # 协议详情页
 │   ├── notifications/          # 通知页面
 │   ├── providers/              # React Context
 │   └── globals.css             # 全局样式
@@ -185,11 +209,23 @@ mini-social/
 │   ├── SearchBar.tsx           # 搜索栏
 │   ├── NotificationBell.tsx    # 通知铃铛
 │   ├── FollowButton.tsx        # 关注按钮
+│   ├── defi/                   # DeFi 组件
+│   │   ├── ProtocolCard.tsx    # 协议卡片
+│   │   ├── YieldCard.tsx       # 收益率卡片
+│   │   ├── DeFiEmbedPicker.tsx # DeFi 嵌入选择器
+│   │   ├── DeFiEmbedPreview.tsx# DeFi 嵌入预览
+│   │   └── charts/             # 图表组件
+│   │       ├── TVLChart.tsx    # TVL 图表
+│   │       └── TVLHistoryChart.tsx # 历史 TVL 图表
 │   └── ...                     # 更多组件
 ├── lib/                         # 工具函数和配置
 │   ├── supabase.ts             # Supabase 客户端配置
 │   ├── supabase-api.ts         # 服务端 Supabase 客户端
-│   └── utils.ts                # 通用工具函数
+│   ├── utils.ts                # 通用工具函数
+│   └── defillama/              # DeFiLlama API 客户端
+│       ├── client.ts           # API 客户端
+│       ├── types.ts            # 类型定义
+│       └── README.md           # DeFi 客户端文档
 ├── types/                       # TypeScript 类型定义
 │   └── database.ts             # 数据库类型
 ├── hooks/                       # 自定义 React Hooks
@@ -212,6 +248,10 @@ mini-social/
 | `hashtags` | 标签 |
 | `post_hashtags` | 动态-标签关联 |
 | `mentions` | 提及记录 |
+| `defi_protocols` | DeFi 协议数据缓存（TVL、分类、链） |
+| `defi_yields` | 收益率池子数据缓存 |
+| `defi_token_prices` | 代币价格缓存（5分钟过期） |
+| `post_defi_embeds` | 动态中嵌入的 DeFi 数据快照 |
 
 ### 关键特性
 
@@ -253,6 +293,33 @@ mini-social/
 - 热度分数 = 点赞×2 + 评论×3 + 转发×4 - 时间衰减
 - 数据库触发器自动更新
 - 缓存优化
+
+### DeFi 数据集成
+- **DeFiLlama API**: 集成链上数据查询
+- **协议查询**: 1000+ DeFi 协议（TVL、分类、链、24h变化）
+- **收益率池子**: APY 查询、筛选、排序
+- **代币价格**:
+  - WebSocket 实时推送（Binance，毫秒级）
+  - DeFiLlama 价格查询（历史价格、批量查询）
+  - 自动价格更新（定时 10 秒或实时 WebSocket）
+- **数据缓存**: Supabase 表缓存 API 响应（5分钟过期）
+- **DeFi 嵌入**: 动态中嵌入协议/池子数据卡片
+- **数据可视化**: TVL 图表、趋势图（Recharts）
+- **客户端使用**:
+  ```typescript
+  import { defillama } from '@/lib/defillama'
+
+  // 获取协议数据
+  const protocols = await defillama.getProtocols()
+
+  // 获取代币价格
+  const price = await defillama.getTokenPrice('ethereum', '0x...')
+
+  // 获取收益率
+  const yields = await defillama.getTopYields(10, 1000000)
+  ```
+- **测试**: `npm run test:defillama` / `npm run test:frontend`
+- **文档**: `lib/defillama/README.md`
 
 ## ❓ 常见问题
 
