@@ -194,11 +194,17 @@ export default function APYHistoryChart({
 
       {/* 图表 */}
       {filteredData.length > 0 ? (
-        <div className="w-full -mx-2 md:mx-0" style={{ touchAction: 'pan-y' }}>
+        <div
+          className="w-full"
+          style={{
+            height: `${height}px`,
+            minHeight: `${height}px`
+          }}
+        >
           <ResponsiveContainer width="100%" height={height}>
             <AreaChart
               data={filteredData}
-              margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
             >
               <defs>
                 <linearGradient id="apyGradient" x1="0" y1="0" x2="0" y2="1">
@@ -219,7 +225,7 @@ export default function APYHistoryChart({
                 stroke="#6B7280"
                 style={{ fontSize: '10px' }}
                 tick={{ fontSize: 10 }}
-                width={40}
+                width={50}
               />
               <Tooltip content={<CustomTooltip />} />
 

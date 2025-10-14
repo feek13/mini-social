@@ -6,7 +6,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
   Area,
   AreaChart
 } from 'recharts'
@@ -42,6 +41,7 @@ export default function TVLHistoryChart({
   const [showUSD, setShowUSD] = useState(true)
 
   const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return []
     if (timeRange === 'all') return data
 
     const now = Date.now() / 1000
@@ -148,53 +148,59 @@ export default function TVLHistoryChart({
       </div>
 
       {/* 图表 - 移动端高度调整 */}
-      <div className="w-full -mx-2 md:mx-0" style={{ touchAction: 'pan-y' }}>
-        <ResponsiveContainer width="100%" height={height}>
+      {filteredData && filteredData.length > 0 ? (
+        <div className="w-full overflow-x-auto">
           <AreaChart
+            width={1100}
+            height={height}
             data={filteredData}
-            margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+            margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
           >
-            <defs>
-              <linearGradient id="tvlGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis
-              dataKey="timestamp"
-              tickFormatter={formatDate}
-              stroke="#6B7280"
-              style={{ fontSize: '10px' }}
-              tick={{ fontSize: 10 }}
-            />
-            <YAxis
-              tickFormatter={(value) => {
-                // 移动端简化显示
-                if (value >= 1000000000) {
-                  return `${(value / 1000000000).toFixed(1)}B`
-                }
-                if (value >= 1000000) {
-                  return `${(value / 1000000).toFixed(1)}M`
-                }
-                return formatTVL(value)
-              }}
-              stroke="#6B7280"
-              style={{ fontSize: '10px' }}
-              tick={{ fontSize: 10 }}
-              width={40}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="tvl"
-              stroke="#3B82F6"
-              strokeWidth={2}
-              fill="url(#tvlGradient)"
-            />
+              <defs>
+                <linearGradient id="tvlGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={formatDate}
+                stroke="#6B7280"
+                style={{ fontSize: '12px' }}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis
+                tickFormatter={(value) => {
+                  // 移动端简化显示
+                  if (value >= 1000000000) {
+                    return `${(value / 1000000000).toFixed(1)}B`
+                  }
+                  if (value >= 1000000) {
+                    return `${(value / 1000000).toFixed(1)}M`
+                  }
+                  return formatTVL(value)
+                }}
+                stroke="#6B7280"
+                style={{ fontSize: '12px' }}
+                tick={{ fontSize: 12 }}
+                width={80}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="tvl"
+                stroke="#3B82F6"
+                strokeWidth={2}
+                fill="url(#tvlGradient)"
+              />
           </AreaChart>
-        </ResponsiveContainer>
-      </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center text-gray-400" style={{ height: `${height}px` }}>
+          No TVL data available ({data?.length || 0} points, filtered: {filteredData?.length || 0})
+        </div>
+      )}
     </div>
   )
 }

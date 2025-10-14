@@ -287,11 +287,17 @@ export default function PriceHistoryChart({
 
       {/* 图表 */}
       {filteredData.length > 0 ? (
-        <div className="w-full -mx-2 md:mx-0" style={{ touchAction: 'pan-y' }}>
+        <div
+          className="w-full"
+          style={{
+            height: `${height}px`,
+            minHeight: `${height}px`
+          }}
+        >
           <ResponsiveContainer width="100%" height={height}>
             <ComposedChart
               data={filteredData}
-              margin={{ top: 5, right: 5, left: -15, bottom: 5 }}
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
             >
               <defs>
                 <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
