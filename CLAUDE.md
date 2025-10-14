@@ -28,6 +28,7 @@ npm run test:defillama         # 测试 DeFiLlama API 客户端 (TypeScript)
 npm run test:defillama:full    # 完整集成测试 (包含所有 API 端点)
 npm run test:defillama:quick   # 快速测试 (bash 脚本)
 npm run test:frontend          # 前端 DeFi 功能测试
+npm run test:pancakeswap       # 测试 PancakeSwap 集成
 ```
 
 ## Environment Variables
@@ -113,6 +114,8 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 - **defi_yields**: 收益率池子数据缓存
 - **defi_token_prices**: 代币价格缓存（5 分钟过期）
 - **post_defi_embeds**: 动态中嵌入的 DeFi 数据快照
+- **pancake_pools**: PancakeSwap 池子数据缓存
+- **pancake_farms**: PancakeSwap Farm 数据缓存
 
 ### Database Triggers
 
@@ -197,6 +200,8 @@ API 端点：
 
 ### 7. DeFi 数据集成
 
+#### DeFiLlama 集成
+
 项目集成了 DeFiLlama API，提供链上 DeFi 数据查询功能：
 
 - **协议数据**: `lib/defillama/client.ts` - 获取协议列表、详情、搜索、按分类/链筛选
@@ -226,13 +231,40 @@ const price = await defillama.getTokenPrice('ethereum', '0x...')
 const yields = await defillama.getTopYields(10, 1000000)
 ```
 
+#### PancakeSwap 集成
+
+项目集成了 PancakeSwap 特定功能，提供更详细的 DEX 数据：
+
+- **PancakeSwap 客户端**: `lib/pancakeswap/client.ts` - 专门的 PancakeSwap API 集成
+- **Pool 数据**: 获取流动性池子、Farm 数据、质押信息
+- **API 端点**:
+  - `GET /api/defi/pancakeswap/pools` - 获取 PancakeSwap 池子数据
+  - `GET /api/defi/pancakeswap/farms` - 获取 Farm 信息
+  - `GET /api/defi/pancakeswap/overview` - 获取总览数据
+- **支持的链**: BSC、Ethereum、Arbitrum、Base、Polygon、zkSync、Linea
+- **自动跳转**: 点击"认购"按钮自动跳转到 PancakeSwap 官网相应页面
+
+客户端使用：
+```typescript
+import { pancakeswap } from '@/lib/pancakeswap'
+
+// 获取池子数据
+const pools = await pancakeswap.getPools('bsc')
+
+// 获取 Farm 数据
+const farms = await pancakeswap.getFarms()
+```
+
 测试：
-- 运行 `npm run test:defillama` 测试 API 集成
+- 运行 `npm run test:defillama` 测试 DeFiLlama API 集成
+- 运行 `npm run test:pancakeswap` 测试 PancakeSwap 集成
 - 运行 `npm run test:frontend` 测试前端 DeFi 组件
 - 访问 `/defi` 查看 DeFi 数据页面
 - 访问 `/api/test-defillama` 查看 API 端点示例
 
-详细文档：`lib/defillama/README.md`
+详细文档：
+- `lib/defillama/README.md` - DeFiLlama 客户端文档
+- `PANCAKESWAP_INTEGRATION.md` - PancakeSwap 集成说明
 
 ## Component Patterns
 
@@ -383,6 +415,16 @@ try {
 4. **触发器依赖**: 修改表结构前检查相关触发器
 5. **环境变量**: 以 `NEXT_PUBLIC_` 开头的变量会暴露到客户端
 6. **端口冲突**: 如果 3000 端口被占用，使用 `lsof -ti:3000 | xargs kill -9` 或 `pkill -f "next dev"` 清理进程
+
+## MCP Servers
+
+项目配置了以下 MCP (Model Context Protocol) 服务器（见 `.mcp.json`）：
+
+- **chrome-devtools**: 用于浏览器自动化和调试
+- **context7**: 提供文档和上下文增强
+- **mcp-deepwiki**: 深度文档搜索和分析
+
+这些 MCP 服务器在开发时可通过 Claude Code 自动使用。
 
 ## Deployment Notes
 

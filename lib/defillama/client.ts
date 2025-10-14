@@ -324,6 +324,45 @@ export class DeFiLlamaClient {
       .sort((a, b) => b.apy - a.apy)
       .slice(0, limit)
   }
+
+  /**
+   * 获取协议的历史 TVL 数据
+   *
+   * @param slug - 协议的唯一标识符
+   * @returns 包含历史 TVL 数据的协议详情
+   * @example
+   * ```ts
+   * const data = await client.getProtocolTVLHistory('aave')
+   * console.log(data.chainTvls)
+   * ```
+   */
+  async getProtocolTVLHistory(slug: string): Promise<ProtocolDetail> {
+    return this.getProtocol(slug)
+  }
+
+  /**
+   * 获取批量历史代币价格
+   *
+   * @param chain - 区块链名称
+   * @param address - 代币合约地址
+   * @param timestamps - Unix 时间戳数组
+   * @returns 代币价格数组
+   * @example
+   * ```ts
+   * const timestamps = [1609459200, 1612137600, 1614556800]
+   * const prices = await client.getBatchHistoricalPrices('ethereum', '0x...', timestamps)
+   * ```
+   */
+  async getBatchHistoricalPrices(
+    chain: string,
+    address: string,
+    timestamps: number[]
+  ): Promise<TokenPrice[]> {
+    const prices = await Promise.all(
+      timestamps.map(ts => this.getHistoricalTokenPrice(chain, address, ts))
+    )
+    return prices
+  }
 }
 
 /**

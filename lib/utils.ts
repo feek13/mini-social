@@ -153,17 +153,23 @@ export function formatDays(days: number): string {
  * formatTVL(1234567)    // "$1.23M"
  * formatTVL(1234)       // "$1.23K"
  */
-export function formatTVL(value: number): string {
-  if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(2)}B`
+export function formatTVL(value: number | null | undefined): string {
+  // 处理非数字值
+  const numValue = Number(value)
+  if (!value || isNaN(numValue) || numValue === 0) {
+    return 'N/A'
   }
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(2)}M`
+
+  if (numValue >= 1_000_000_000) {
+    return `$${(numValue / 1_000_000_000).toFixed(2)}B`
   }
-  if (value >= 1_000) {
-    return `$${(value / 1_000).toFixed(2)}K`
+  if (numValue >= 1_000_000) {
+    return `$${(numValue / 1_000_000).toFixed(2)}M`
   }
-  return `$${value.toFixed(2)}`
+  if (numValue >= 1_000) {
+    return `$${(numValue / 1_000).toFixed(2)}K`
+  }
+  return `$${numValue.toFixed(2)}`
 }
 
 /**
@@ -188,9 +194,15 @@ export function formatChange(change: number | null): string {
  *
  * @example
  * formatAPY(12.5) // "12.50%"
+ * formatAPY(null) // "N/A"
  */
-export function formatAPY(apy: number): string {
-  return `${apy.toFixed(2)}%`
+export function formatAPY(apy: number | null | undefined): string {
+  // 处理非数字值
+  const numValue = Number(apy)
+  if (apy === null || apy === undefined || isNaN(numValue)) {
+    return 'N/A'
+  }
+  return `${numValue.toFixed(2)}%`
 }
 
 /**
@@ -325,4 +337,233 @@ export function getBlockExplorerUrl(chain: string, address: string): string {
 
   // 如果没有匹配的浏览器，返回 DeFiLlama 链页面作为备用
   return `https://defillama.com/chain/${chain}`
+}
+
+// =============================================================================
+// DeFi 收益率相关工具函数（新增）
+// =============================================================================
+
+/**
+ * 计算风险评分（0-100 分）
+ * @param pool 收益率池子数据
+ * @returns 风险评分（100 = 极低风险，0 = 极高风险）
+ *
+ * @example
+ * calculateRiskScore(pool) // 85 (低风险)
+ */
+export function calculateRiskScore(pool: {
+  ilRisk: string
+  tvlUsd: number
+  apy: number
+  predictions?: { binnedConfidence?: number } | null
+}): number {
+  let score = 100
+
+  // 无常损失风险扣分（-30 分）
+  if (pool.ilRisk.toLowerCase() === 'yes') {
+    score -= 30
+  } else if (pool.ilRisk.toLowerCase() === 'unknown') {
+    score -= 15
+  }
+
+  // TVL 太低扣分（-20 分）
+  if (pool.tvlUsd < 100_000) {
+    score -= 20
+  } else if (pool.tvlUsd < 1_000_000) {
+    score -= 10
+  }
+
+  // APY 异常高可能不稳定（-15 分）
+  if (pool.apy > 100) {
+    score -= 15
+  } else if (pool.apy > 50) {
+    score -= 8
+  }
+
+  // AI 预测信心度低扣分（-10 分）
+  const confidence = pool.predictions?.binnedConfidence
+  if (confidence !== undefined && confidence !== null) {
+    if (confidence < 2) {
+      score -= 10
+    }
+  }
+
+  return Math.max(0, Math.min(100, score))
+}
+
+/**
+ * 获取风险评分的样式
+ * @param score 风险评分（0-100）
+ * @returns 包含颜色、背景和标签的对象
+ */
+export function getRiskScoreStyle(score: number): {
+  color: string
+  bg: string
+  label: string
+  ring: string
+} {
+  if (score >= 90) {
+    return {
+      color: 'text-green-700',
+      bg: 'bg-green-100',
+      label: '极低风险',
+      ring: 'ring-green-500',
+    }
+  }
+  if (score >= 70) {
+    return {
+      color: 'text-blue-700',
+      bg: 'bg-blue-100',
+      label: '低风险',
+      ring: 'ring-blue-500',
+    }
+  }
+  if (score >= 50) {
+    return {
+      color: 'text-yellow-700',
+      bg: 'bg-yellow-100',
+      label: '中等风险',
+      ring: 'ring-yellow-500',
+    }
+  }
+  if (score >= 30) {
+    return {
+      color: 'text-orange-700',
+      bg: 'bg-orange-100',
+      label: '较高风险',
+      ring: 'ring-orange-500',
+    }
+  }
+  return {
+    color: 'text-red-700',
+    bg: 'bg-red-100',
+    label: '高风险',
+    ring: 'ring-red-500',
+  }
+}
+
+/**
+ * 格式化 APY 变化百分比
+ * @param change APY 变化百分比
+ * @returns 格式化后的字符串（带符号）
+ *
+ * @example
+ * formatAPYChange(0.5) // "+0.50%"
+ * formatAPYChange(-1.2) // "-1.20%"
+ */
+export function formatAPYChange(change: number | null): string {
+  if (change === null || change === undefined) return 'N/A'
+  const sign = change > 0 ? '+' : ''
+  return `${sign}${change.toFixed(2)}%`
+}
+
+/**
+ * 获取 APY 趋势图标
+ * @param apyPct7D 7 天 APY 变化百分比
+ * @returns 趋势标识字符串
+ */
+export function getAPYTrendIcon(apyPct7D: number | null): string {
+  if (apyPct7D === null || apyPct7D === undefined) return '—'
+  if (apyPct7D > 1) return '↑↑'  // 大涨
+  if (apyPct7D > 0) return '↑'   // 上涨
+  if (apyPct7D < -1) return '↓↓' // 大跌
+  if (apyPct7D < 0) return '↓'   // 下跌
+  return '→' // 持平
+}
+
+/**
+ * 获取 APY 趋势颜色类名
+ * @param apyPct7D 7 天 APY 变化百分比
+ * @returns Tailwind 颜色类名
+ */
+export function getAPYTrendColor(apyPct7D: number | null): string {
+  if (apyPct7D === null || apyPct7D === undefined) return 'text-gray-400'
+  if (apyPct7D > 0) return 'text-green-600'
+  if (apyPct7D < 0) return 'text-red-600'
+  return 'text-gray-500'
+}
+
+/**
+ * 获取预测结果的样式
+ * @param predictedClass 预测分类
+ * @returns 包含颜色、背景和标签的对象
+ */
+export function getPredictionStyle(predictedClass: string | null): {
+  color: string
+  bg: string
+  label: string
+} | null {
+  if (!predictedClass) return null
+
+  const classLower = predictedClass.toLowerCase()
+
+  if (classLower.includes('stable') || classLower.includes('up')) {
+    return {
+      color: 'text-green-700',
+      bg: 'bg-green-100',
+      label: '稳定/上涨',
+    }
+  }
+
+  if (classLower.includes('down')) {
+    return {
+      color: 'text-red-700',
+      bg: 'bg-red-100',
+      label: '可能下跌',
+    }
+  }
+
+  return {
+    color: 'text-gray-700',
+    bg: 'bg-gray-100',
+    label: predictedClass,
+  }
+}
+
+/**
+ * 计算收益回报
+ * @param principal 本金
+ * @param apy APY 百分比
+ * @param days 投资天数
+ * @param compound 是否复利（默认 false）
+ * @returns 收益和总额
+ *
+ * @example
+ * calculateYieldReturn(10000, 10, 365, false) // { return: 1000, total: 11000 }
+ * calculateYieldReturn(10000, 10, 365, true)  // { return: 1051.71, total: 11051.71 }
+ */
+export function calculateYieldReturn(
+  principal: number,
+  apy: number,
+  days: number,
+  compound: boolean = false
+): {
+  return: number
+  total: number
+} {
+  const rate = apy / 100
+
+  if (compound) {
+    // 复利计算：A = P(1 + r/n)^(nt)
+    // 假设每日复利（n = 365）
+    const n = 365
+    const t = days / 365
+    const total = principal * Math.pow(1 + rate / n, n * t)
+    const returnAmount = total - principal
+
+    return {
+      return: Math.round(returnAmount * 100) / 100,
+      total: Math.round(total * 100) / 100,
+    }
+  } else {
+    // 单利计算：A = P(1 + rt)
+    const t = days / 365
+    const total = principal * (1 + rate * t)
+    const returnAmount = total - principal
+
+    return {
+      return: Math.round(returnAmount * 100) / 100,
+      total: Math.round(total * 100) / 100,
+    }
+  }
 }

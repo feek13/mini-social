@@ -10,7 +10,8 @@
     "test:defillama": "tsx scripts/test-defillama.ts",
     "test:defillama:full": "npx ts-node scripts/test-defillama-integration.ts",
     "test:defillama:quick": "bash scripts/quick-test-defillama.sh",
-    "test:frontend": "bash scripts/test-frontend-defi.sh"
+    "test:frontend": "bash scripts/test-frontend-defi.sh",
+    "test:pancakeswap": "tsx scripts/test-pancakeswap.ts"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",

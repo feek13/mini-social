@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseClient, getSupabaseServiceClient } from '@/lib/supabase-api'
-import { defillama } from '@/lib/defillama'
-import { Protocol } from '@/lib/defillama/types'
+import { getSupabaseServiceClient } from '@/lib/supabase-api'
+import { unifiedDefi } from '@/lib/defi/unified-client'
+import type { Protocol } from '@/lib/defillama/types'
 
 // 配置路由段缓存
 export const dynamic = 'force-dynamic'
@@ -10,11 +10,16 @@ export const revalidate = 3600 // 1 小时重新验证缓存
 /**
  * GET - 获取 DeFi 协议列表
  *
+ * ✅ 已优化：使用 UnifiedDeFiClient（内置智能缓存 + 过滤）
+ *
  * 查询参数：
  * - search: 搜索协议名称（可选）
  * - category: 按分类过滤（可选）
  * - chain: 按链过滤（可选）
+ * - minTvl: 最小 TVL（可选）
  * - limit: 返回数量（默认 50）
+ * - sortBy: 排序方式（可选，tvl | change_1d | change_7d）
+ * - order: 排序方向（可选，asc | desc）
  *
  * 响应格式：
  * {
@@ -28,11 +33,14 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined
     const category = searchParams.get('category') || undefined
     const chain = searchParams.get('chain') || undefined
+    const minTvl = searchParams.get('minTvl') ? parseFloat(searchParams.get('minTvl')!) : undefined
     const limit = parseInt(searchParams.get('limit') || '50')
+    const sortBy = searchParams.get('sortBy') as 'tvl' | 'change_1d' | 'change_7d' || undefined
+    const order = searchParams.get('order') as 'asc' | 'desc' || undefined
 
     console.log('='.repeat(60))
     console.log('[DeFi Protocols API] 收到请求')
-    console.log('参数:', { search, category, chain, limit })
+    console.log('参数:', { search, category, chain, minTvl, limit, sortBy, order })
 
     // 验证参数
     if (limit < 1 || limit > 1000) {
@@ -43,121 +51,37 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = getSupabaseClient()
-
-    // 步骤 1: 尝试从缓存获取数据
-    console.log('\n[步骤 1] 查询缓存数据...')
-    let query = supabase
-      .from('defi_protocols')
-      .select('*')
-      .gt('expires_at', new Date().toISOString())
-
-    // 应用过滤条件
-    if (category) {
-      query = query.eq('category', category)
-    }
-
-    if (search) {
-      query = query.ilike('protocol_name', `%${search}%`)
-    }
-
-    // chain 过滤需要在后处理（因为 chains 是 JSONB 数组）
-    const { data: cachedProtocols, error: cacheError } = await query
-
-    if (cacheError) {
-      console.error('❌ 查询缓存失败:', cacheError)
-      // 继续从 API 获取，不中断流程
-    }
-
-    // 检查缓存是否有效
-    let validCachedProtocols = cachedProtocols || []
-
-    // 如果指定了 chain，进行后过滤
-    if (chain && validCachedProtocols.length > 0) {
-      validCachedProtocols = validCachedProtocols.filter(p => {
-        const chains = Array.isArray(p.chains) ? p.chains : []
-        return chains.some((c: string) => c.toLowerCase() === chain.toLowerCase())
-      })
-    }
-
-    if (validCachedProtocols.length > 0) {
-      console.log(`✅ 找到 ${validCachedProtocols.length} 条有效缓存`)
-
-      // 转换为 Protocol 类型并限制数量
-      const protocols = validCachedProtocols
-        .slice(0, limit)
-        .map(p => convertCacheToProtocol(p))
-
-      console.log(`📦 返回 ${protocols.length} 条缓存数据`)
-      console.log('='.repeat(60))
-
-      return NextResponse.json(
-        {
-          protocols,
-          cached: true
-        },
-        {
-          headers: {
-            'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
-          },
-        }
-      )
-    }
-
-    // 步骤 2: 缓存为空，从 DeFiLlama API 获取
-    console.log('⚠️ 缓存为空或已过期，从 API 获取数据...')
     const startTime = Date.now()
 
-    let protocols = await defillama.getProtocols()
+    // 使用统一 DeFi 客户端（自动处理缓存和过滤）
+    const protocols = await unifiedDefi.getProtocols({
+      search,
+      category,
+      chain,
+      minTvl,
+      limit,
+      sortBy,
+      order
+    })
+
     const duration = Date.now() - startTime
+    console.log(`✅ 获取 ${protocols.length} 个协议 (${duration}ms)`)
 
-    console.log(`✅ 成功获取 ${protocols.length} 个协议 (${duration}ms)`)
-
-    // 步骤 3: 应用过滤条件
-    if (search) {
-      const lowerSearch = search.toLowerCase()
-      protocols = protocols.filter(p =>
-        p.name.toLowerCase().includes(lowerSearch) ||
-        p.slug.toLowerCase().includes(lowerSearch) ||
-        p.symbol.toLowerCase().includes(lowerSearch)
-      )
-      console.log(`📝 搜索过滤后剩余 ${protocols.length} 个协议`)
-    }
-
-    if (category) {
-      protocols = protocols.filter(p =>
-        p.category.toLowerCase() === category.toLowerCase()
-      )
-      console.log(`📂 分类过滤后剩余 ${protocols.length} 个协议`)
-    }
-
-    if (chain) {
-      protocols = protocols.filter(p =>
-        p.chains.some(c => c.toLowerCase() === chain.toLowerCase())
-      )
-      console.log(`⛓️ 链过滤后剩余 ${protocols.length} 个协议`)
-    }
-
-    // 步骤 4: 缓存到数据库（异步执行，不阻塞响应）
-    // 只缓存全量数据（无过滤条件时）
-    if (!search && !category && !chain) {
-      console.log('\n[步骤 4] 缓存数据到数据库（后台执行）...')
+    // 后台缓存到数据库（仅全量数据）
+    if (!search && !category && !chain && !minTvl) {
+      console.log('💾 后台缓存协议数据到数据库...')
       cacheProtocolsToDatabase(protocols).catch(err => {
         console.error('❌ 缓存写入失败:', err)
       })
-    } else {
-      console.log('\n[跳过缓存] 有过滤条件，不写入缓存')
     }
 
-    // 步骤 5: 返回结果（限制数量）
-    const limitedProtocols = protocols.slice(0, limit)
-    console.log(`📦 返回 ${limitedProtocols.length} 条 API 数据`)
+    console.log(`📦 返回 ${protocols.length} 条数据`)
     console.log('='.repeat(60))
 
     return NextResponse.json(
       {
-        protocols: limitedProtocols,
-        cached: false
+        protocols,
+        cached: false // UnifiedClient 内部使用内存缓存
       },
       {
         headers: {

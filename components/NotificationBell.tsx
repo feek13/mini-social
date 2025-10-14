@@ -19,17 +19,29 @@ export default function NotificationBell({ variant = 'icon' }: NotificationBellP
   useEffect(() => {
     if (!user) return
 
+    let retryCount = 0
+    const maxRetries = 3
+
     // 获取未读数量
     const fetchUnreadCount = async () => {
       try {
         const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession()
-        if (!session?.access_token) return
+        if (!session?.access_token) {
+          console.log('[NotificationBell] 未找到有效会话，跳过请求')
+          return
+        }
+
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10秒超时
 
         const response = await fetch('/api/notifications/unread-count', {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
           },
+          signal: controller.signal,
         })
+
+        clearTimeout(timeoutId)
 
         if (response.ok) {
           const data = await response.json()
@@ -42,9 +54,27 @@ export default function NotificationBell({ variant = 'icon' }: NotificationBellP
           }
 
           setUnreadCount(newCount)
+          retryCount = 0 // 成功后重置重试计数
+        } else if (response.status === 401) {
+          console.log('[NotificationBell] 认证失败，可能需要重新登录')
+        } else {
+          console.warn(`[NotificationBell] API 返回错误: ${response.status}`)
         }
       } catch (error) {
-        console.error('获取未读数量失败:', error)
+        // 只在开发环境记录详细错误，生产环境静默失败
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            console.warn('[NotificationBell] 请求超时')
+          } else if (error.message.includes('Failed to fetch')) {
+            // 网络错误，尝试重试
+            if (retryCount < maxRetries) {
+              retryCount++
+              console.warn(`[NotificationBell] 网络错误，${retryCount}/${maxRetries} 次重试`)
+            }
+          } else {
+            console.error('[NotificationBell] 获取未读数量失败:', error.message)
+          }
+        }
       }
     }
 

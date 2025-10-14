@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseClient, getSupabaseServiceClient } from '@/lib/supabase-api'
-import { defillama } from '@/lib/defillama'
-import { YieldPool } from '@/lib/defillama/types'
+import { getSupabaseServiceClient } from '@/lib/supabase-api'
+import { unifiedDefi } from '@/lib/defi/unified-client'
+import type { YieldPool } from '@/lib/defillama/types'
+import { aggregatePools } from '@/lib/defi-utils'
 
 // 配置路由段缓存
 export const dynamic = 'force-dynamic'
@@ -10,10 +11,18 @@ export const revalidate = 1800 // 30 分钟重新验证缓存
 /**
  * GET - 获取 DeFi 收益率池子列表
  *
+ * ✅ 已优化：使用 UnifiedDeFiClient（内置智能缓存 + 过滤）
+ *
  * 查询参数：
+ * - category: 产品分类（可选，stablecoin | single | multi | all）
  * - chain: 按链过滤（可选，如 'Ethereum', 'Arbitrum'）
  * - protocol: 按协议过滤（可选，如 'aave-v3', 'uniswap-v3'）
  * - minApy: 最低 APY（可选，默认 0）
+ * - minTvl: 最低 TVL（可选，默认 0）
+ * - stablecoin: 仅稳定币池（可选，'true' | 'false'）
+ * - farmsOnly: 仅 Farms（可选，'true' | 'false'）
+ * - sortBy: 排序方式（可选，apy | tvl | apyBase | apyReward）
+ * - order: 排序方向（可选，asc | desc）
  * - limit: 返回数量（可选，默认 20）
  *
  * 响应格式：
@@ -25,14 +34,20 @@ export const revalidate = 1800 // 30 分钟重新验证缓存
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const category = searchParams.get('category') || 'all'
     const chain = searchParams.get('chain') || undefined
     const protocol = searchParams.get('protocol') || undefined
     const minApy = parseFloat(searchParams.get('minApy') || '0')
+    const minTvl = parseFloat(searchParams.get('minTvl') || '0')
+    const stablecoinParam = searchParams.get('stablecoin')
+    const farmsOnlyParam = searchParams.get('farmsOnly')
+    const sortBy = searchParams.get('sortBy') as 'apy' | 'tvl' | 'apyBase' | 'apyReward' || 'apy'
+    const order = searchParams.get('order') as 'asc' | 'desc' || 'desc'
     const limit = parseInt(searchParams.get('limit') || '20')
 
     console.log('='.repeat(60))
     console.log('[DeFi Yields API] 收到请求')
-    console.log('参数:', { chain, protocol, minApy, limit })
+    console.log('参数:', { category, chain, protocol, minApy, minTvl, stablecoinParam, farmsOnlyParam, sortBy, order, limit })
 
     // 验证参数
     if (isNaN(minApy) || minApy < 0) {
@@ -51,112 +66,68 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = getSupabaseClient()
-
-    // 步骤 1: 尝试从缓存获取数据
-    console.log('\n[步骤 1] 查询缓存数据...')
-    let query = supabase
-      .from('defi_yields')
-      .select('*')
-      .gt('expires_at', new Date().toISOString())
-      .gte('apy', minApy)
-      .order('apy', { ascending: false })
-
-    // 应用过滤条件
-    if (chain) {
-      query = query.ilike('chain', chain)
-    }
-
-    if (protocol) {
-      query = query.ilike('protocol', protocol)
-    }
-
-    const { data: cachedYields, error: cacheError } = await query.limit(limit)
-
-    if (cacheError) {
-      console.error('❌ 查询缓存失败:', cacheError)
-      // 继续从 API 获取，不中断流程
-    }
-
-    // 检查缓存是否有效（需要有足够的数据）
-    const validCachedYields = cachedYields || []
-
-    // 如果缓存有数据且满足 limit 要求，或者没有过滤条件时有任何数据
-    if (validCachedYields.length >= Math.min(limit, 10) ||
-        (validCachedYields.length > 0 && !chain && !protocol && minApy === 0)) {
-      console.log(`✅ 找到 ${validCachedYields.length} 条有效缓存`)
-
-      // 转换为 YieldPool 类型
-      const pools = validCachedYields.map(y => convertCacheToYieldPool(y))
-
-      console.log(`📦 返回 ${pools.length} 条缓存数据`)
-      console.log('='.repeat(60))
-
-      return NextResponse.json(
-        {
-          pools,
-          cached: true
-        },
-        {
-          headers: {
-            'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
-          },
-        }
-      )
-    }
-
-    // 步骤 2: 缓存为空或不足，从 DeFiLlama API 获取
-    console.log('⚠️ 缓存为空或数据不足，从 API 获取数据...')
     const startTime = Date.now()
 
-    let pools = await defillama.getYields()
+    // 处理产品分类
+    let stablecoin: boolean | undefined
+    if (category === 'stablecoin') {
+      stablecoin = true
+    } else if (stablecoinParam === 'true') {
+      stablecoin = true
+    } else if (stablecoinParam === 'false') {
+      stablecoin = false
+    }
+
+    const farmsOnly = farmsOnlyParam === 'true'
+
+    // 使用统一 DeFi 客户端（自动处理缓存和过滤）
+    let pools = await unifiedDefi.getYields({
+      protocol,
+      chain,
+      minApy,
+      minTvl,
+      stablecoin,
+      farmsOnly,
+      limit: limit * 2, // 获取更多数据用于聚合
+      sortBy,
+      order
+    })
+
     const duration = Date.now() - startTime
+    console.log(`✅ 获取 ${pools.length} 个收益率池子 (${duration}ms)`)
 
-    console.log(`✅ 成功获取 ${pools.length} 个收益率池子 (${duration}ms)`)
-
-    // 步骤 3: 应用过滤条件
-    if (chain) {
-      pools = pools.filter(p =>
-        p.chain.toLowerCase() === chain.toLowerCase()
-      )
-      console.log(`⛓️ 链过滤后剩余 ${pools.length} 个池子`)
+    // 应用额外的分类过滤（category 参数）
+    if (category === 'single') {
+      pools = pools.filter(p => p.exposure === 'single')
+      console.log(`📂 单资产过滤后剩余 ${pools.length} 个池子`)
+    } else if (category === 'multi') {
+      pools = pools.filter(p => p.exposure === 'multi')
+      console.log(`📂 多资产过滤后剩余 ${pools.length} 个池子`)
     }
 
-    if (protocol) {
-      pools = pools.filter(p =>
-        p.project.toLowerCase().includes(protocol.toLowerCase())
-      )
-      console.log(`🔧 协议过滤后剩余 ${pools.length} 个池子`)
-    }
+    // 聚合 PancakeSwap 池子
+    console.log(`\n🔗 聚合 PancakeSwap 池子...`)
+    const beforeAggregation = pools.length
+    pools = aggregatePools(pools)
+    console.log(`   聚合后: ${beforeAggregation} -> ${pools.length} 个池子`)
 
-    if (minApy > 0) {
-      pools = pools.filter(p => p.apy >= minApy)
-      console.log(`📈 APY 过滤后剩余 ${pools.length} 个池子`)
-    }
-
-    // 步骤 4: 按 APY 降序排序
-    pools.sort((a, b) => b.apy - a.apy)
-
-    // 步骤 5: 缓存到数据库（异步执行，不阻塞响应）
-    // 只缓存全量数据（无过滤条件时）
-    if (!chain && !protocol && minApy === 0) {
-      console.log('\n[步骤 5] 缓存数据到数据库（后台执行）...')
+    // 后台缓存到数据库（仅全量数据）
+    if (!chain && !protocol && minApy === 0 && !stablecoin) {
+      console.log('💾 后台缓存收益率数据到数据库...')
       cacheYieldsToDatabase(pools).catch(err => {
         console.error('❌ 缓存写入失败:', err)
       })
-    } else {
-      console.log('\n[跳过缓存] 有过滤条件，不写入缓存')
     }
 
-    // 步骤 6: 返回结果（限制数量）
+    // 限制返回数量
     const limitedPools = pools.slice(0, limit)
-    console.log(`📦 返回 ${limitedPools.length} 条 API 数据`)
+    console.log(`📦 返回 ${limitedPools.length} 条数据`)
     console.log('='.repeat(60))
 
     return NextResponse.json(
       {
         pools: limitedPools,
-        cached: false
+        cached: false // UnifiedClient 内部使用内存缓存
       },
       {
         headers: {

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Search, Loader2, TrendingUp, Droplets, Coins, Zap, Sparkles } from 'lucide-react'
 import { Protocol, YieldPool } from '@/lib/defillama/types'
 import Image from 'next/image'
 import { formatTVL, formatAPY } from '@/lib/utils'
+import { useProtocolSearch } from '@/hooks/useProtocolSearch'
+import QuickProtocolPicker from './QuickProtocolPicker'
 
 export type DeFiEmbedType = 'protocol' | 'yield' | 'token'
 
@@ -78,6 +80,20 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
   // 协议搜索结果
   const [protocols, setProtocols] = useState<Protocol[]>([])
 
+  // 搜索建议相关状态
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  // 使用实时搜索 Hook
+  const protocolSearchHook = useProtocolSearch({
+    debounceMs: 300,
+    maxResults: 8,
+    category: protocolCategory || undefined,
+    chain: protocolChain || undefined
+  })
+
   // 收益池筛选状态
   const [yieldMinApy, setYieldMinApy] = useState(0)
   const [yieldChain, setYieldChain] = useState('')
@@ -101,6 +117,78 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
     }
   }, [])
 
+  // 处理搜索输入变化（协议搜索）
+  useEffect(() => {
+    if (activeTab === 'protocol' && searchQuery.trim()) {
+      protocolSearchHook.search(searchQuery)
+      setShowSuggestions(true)
+      setSelectedSuggestionIndex(-1)
+    } else {
+      protocolSearchHook.clear()
+      setShowSuggestions(false)
+    }
+  }, [searchQuery, activeTab, protocolSearchHook])
+
+  // 点击外部关闭搜索建议
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // 处理键盘导航
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || protocolSearchHook.suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        searchProtocols()
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev =>
+          prev < protocolSearchHook.suggestions.length - 1 ? prev + 1 : prev
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1))
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedSuggestionIndex >= 0) {
+          handleSelectProtocol(protocolSearchHook.suggestions[selectedSuggestionIndex])
+        } else {
+          searchProtocols()
+        }
+        break
+      case 'Escape':
+        setShowSuggestions(false)
+        setSelectedSuggestionIndex(-1)
+        break
+    }
+  }
+
+  // 从搜索建议选择协议
+  const handleSelectFromSuggestion = (protocol: Protocol) => {
+    handleSelectProtocol(protocol)
+    setSearchQuery('')
+    setShowSuggestions(false)
+    protocolSearchHook.clear()
+  }
+
   // 加载推荐数据（考虑筛选条件和排序）
   useEffect(() => {
     console.log('[DeFiEmbedPicker] useEffect triggered', { mounted, activeTab })
@@ -108,6 +196,11 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
 
     const loadRecommendations = async () => {
       if (activeTab === 'protocol') {
+        // 如果有搜索建议，不加载推荐数据
+        if (searchQuery.trim() && showSuggestions) {
+          return
+        }
+
         // 加载热门协议
         console.log('[DeFiEmbedPicker] Loading protocols...')
         try {
@@ -425,6 +518,11 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
           {/* 协议搜索 */}
           {activeTab === 'protocol' && (
             <div className="space-y-3">
+              {/* 热门协议快捷选择 */}
+              {!searchQuery.trim() && (
+                <QuickProtocolPicker onSelect={handleSelectProtocol} />
+              )}
+
               {/* 紧凑型筛选按钮 */}
               <div className="space-y-2">
                 {/* 分类筛选 */}
@@ -464,23 +562,84 @@ export default function DeFiEmbedPicker({ onSelect, onClose }: DeFiEmbedPickerPr
                 </div>
               </div>
 
-              {/* 搜索框 */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && searchProtocols()}
-                  placeholder="搜索协议名称（如：aave, uniswap）"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={searchProtocols}
-                  disabled={loading}
-                  className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                </button>
+              {/* 搜索框 + 实时建议 */}
+              <div className="relative">
+                <div className="flex gap-2">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
+                    placeholder="搜索协议名称（支持：pancake, cake, uni, aave...）"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
+                  />
+                  <button
+                    onClick={searchProtocols}
+                    disabled={loading}
+                    className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition"
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* 搜索建议下拉框 */}
+                {showSuggestions && searchQuery.trim() && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute top-full left-0 right-12 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50"
+                  >
+                    {protocolSearchHook.loading && (
+                      <div className="p-3 text-center text-sm text-gray-500">
+                        <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                        搜索中...
+                      </div>
+                    )}
+
+                    {!protocolSearchHook.loading && protocolSearchHook.suggestions.length === 0 && (
+                      <div className="p-3 text-center text-sm text-gray-500">
+                        未找到匹配的协议
+                      </div>
+                    )}
+
+                    {!protocolSearchHook.loading && protocolSearchHook.suggestions.map((protocol, index) => (
+                      <button
+                        key={protocol.slug}
+                        onClick={() => handleSelectFromSuggestion(protocol)}
+                        className={`w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition text-left border-b border-gray-100 last:border-b-0 ${
+                          index === selectedSuggestionIndex ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        {protocol.logo && (
+                          <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                            <Image
+                              src={protocol.logo}
+                              alt={protocol.name}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm text-gray-900 truncate">
+                            {protocol.name}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-gray-600">
+                              TVL: {formatTVL(protocol.tvl)}
+                            </span>
+                            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded">
+                              {protocol.category}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {error && <p className="text-xs text-red-600">{error}</p>}
