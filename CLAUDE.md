@@ -415,6 +415,18 @@ try {
 4. **触发器依赖**: 修改表结构前检查相关触发器
 5. **环境变量**: 以 `NEXT_PUBLIC_` 开头的变量会暴露到客户端
 6. **端口冲突**: 如果 3000 端口被占用，使用 `lsof -ti:3000 | xargs kill -9` 或 `pkill -f "next dev"` 清理进程
+7. **Recharts 图表渲染**: 在 Next.js 15 + Turbopack 环境中，`ResponsiveContainer` 可能无法正确计算高度（内部 `.recharts-wrapper` 高度为 0px）。解决方案：移除 `ResponsiveContainer`，直接使用固定宽度的图表组件 + `overflow-x-auto` 实现响应式。参考：`components/defi/charts/TVLHistoryChart.tsx:153-197`
+   ```tsx
+   // ❌ 可能失败
+   <ResponsiveContainer width="100%" height={400}>
+     <AreaChart data={data}>...</AreaChart>
+   </ResponsiveContainer>
+
+   // ✅ 推荐
+   <div className="w-full overflow-x-auto">
+     <AreaChart width={1100} height={400} data={data}>...</AreaChart>
+   </div>
+   ```
 
 ## MCP Servers
 

@@ -23,7 +23,11 @@
   - 1000+ 协议数据（TVL、分类、链、24h变化）
   - 收益率池子（APY 查询、筛选、排序）
   - 代币价格（WebSocket 实时推送、历史价格、批量查询）
-  - 数据可视化（TVL 图表、趋势图、协议对比）
+  - 数据可视化（交互式图表，支持多时间范围）
+    - TVL 历史图表（7d/30d/90d/180d/1y/All）
+    - APY 趋势分析（基础 + 奖励 APY）
+    - 价格走势图（折线/面积/蜡烛图）
+    - 响应式设计，完美支持移动端
   - 高级筛选（多维度筛选、自定义排序）
 
 ### 用户体验
@@ -214,9 +218,11 @@ mini-social/
 │   │   ├── YieldCard.tsx       # 收益率卡片
 │   │   ├── DeFiEmbedPicker.tsx # DeFi 嵌入选择器
 │   │   ├── DeFiEmbedPreview.tsx# DeFi 嵌入预览
-│   │   └── charts/             # 图表组件
-│   │       ├── TVLChart.tsx    # TVL 图表
-│   │       └── TVLHistoryChart.tsx # 历史 TVL 图表
+│   │   └── charts/             # 图表组件（基于 Recharts）
+│   │       ├── TVLHistoryChart.tsx    # TVL 历史图表（支持多时间范围）
+│   │       ├── APYHistoryChart.tsx    # APY 趋势图表
+│   │       ├── PriceHistoryChart.tsx  # 价格历史图表（多图表类型）
+│   │       └── MiniTrendChart.tsx     # 迷你趋势图（7d/30d）
 │   └── ...                     # 更多组件
 ├── lib/                         # 工具函数和配置
 │   ├── supabase.ts             # Supabase 客户端配置
@@ -304,7 +310,13 @@ mini-social/
   - 自动价格更新（定时 10 秒或实时 WebSocket）
 - **数据缓存**: Supabase 表缓存 API 响应（5分钟过期）
 - **DeFi 嵌入**: 动态中嵌入协议/池子数据卡片
-- **数据可视化**: TVL 图表、趋势图（Recharts）
+- **数据可视化**:
+  - TVL 历史图表（时间范围：7d, 30d, 90d, 180d, 1y, All）
+  - APY 趋势图（支持基础/奖励 APY 分解）
+  - 价格历史图表（多种图表类型：折线、面积、蜡烛图）
+  - 迷你趋势图（快速查看 7 天/30 天走势）
+  - 响应式设计，完美支持桌面和移动端
+  - 使用 Recharts 库，交互式 tooltip 和渐变效果
 - **客户端使用**:
   ```typescript
   import { defillama } from '@/lib/defillama'
@@ -355,6 +367,27 @@ mini-social/
 rm -rf .next
 npm run dev
 ```
+
+### DeFi 图表不显示
+
+**现象**: 访问 DeFi 协议详情页时，图表区域空白或显示 "No data"
+
+**常见原因**:
+1. 数据未正确加载
+2. 图表组件渲染问题（已在最新版本修复）
+
+**解决方案**:
+1. 检查浏览器控制台是否有错误信息
+2. 确认已运行 `supabase-migration-defillama.sql` 脚本
+3. 验证 DeFiLlama API 可访问（运行 `npm run test:defillama`）
+4. 清除缓存并重新构建：
+   ```bash
+   rm -rf .next
+   npm run dev
+   ```
+5. 如果问题持续，参考 `CLAUDE.md` 中的 "Common Gotchas" 第 7 条
+
+**注意**: 最新版本已修复 Recharts 在 Next.js 15 + Turbopack 环境下的渲染问题，图表现在可以正常显示。
 
 ## 🎯 性能优化
 
