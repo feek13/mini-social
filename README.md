@@ -1,102 +1,154 @@
-# MiniSocial - 迷你社交平台
+# MiniSocial - Web3 社交平台
 
-一个功能完整的迷你社交平台，使用 Next.js 15 和 Supabase 构建，类似 Twitter 的核心体验。
+<div align="center">
 
-## ✨ 功能特性
+一个功能完整的 Web3 社交平台，融合传统社交与链上身份验证、DeFi 数据、NFT 展示等 Web3 特性。
 
-### 核心功能
-- 🔐 **用户认证** - 注册、登录、个人资料管理
-- 📝 **发布动态** - 支持文字发布（280字符限制）
-- 🔄 **转发功能** - 转发他人动态并添加评论
-- ❤️ **点赞系统** - 乐观更新，实时响应
-- 💬 **评论系统** - 支持嵌套评论和回复
-- 👥 **关注功能** - 关注/取关用户，特别关注通知
+**[在线演示](#) | [功能文档](./CLAUDE.md) | [API 文档](#api-文档)**
 
-### 高级功能
-- 🔔 **通知系统** - 点赞、评论、转发、关注、发文通知
-- 🔍 **搜索功能** - 用户和动态搜索，实时搜索建议
-- 🔥 **热门动态** - 基于热度算法的趋势内容
-- #️⃣ **标签系统** - 话题标签支持，点击查看相关动态
-- 📢 **提及功能** - @用户提及，自动补全建议
-- 👤 **个人主页** - 展示用户信息、动态、统计数据
-- 📊 **DeFi 数据浏览器** - 集成 DeFiLlama API，链上数据实时查询
-  - 1000+ 协议数据（TVL、分类、链、24h变化）
-  - 收益率池子（APY 查询、筛选、排序）
-  - 代币价格（WebSocket 实时推送、历史价格、批量查询）
-  - 数据可视化（交互式图表，支持多时间范围）
-    - TVL 历史图表（7d/30d/90d/180d/1y/All）
-    - APY 趋势分析（基础 + 奖励 APY）
-    - 价格走势图（折线/面积/蜡烛图）
-    - 响应式设计，完美支持移动端
-  - 高级筛选（多维度筛选、自定义排序）
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E)](https://supabase.com/)
 
-### 用户体验
-- 🎨 **现代化 UI** - 简洁优雅的界面设计
-- 📱 **响应式布局** - 完美适配手机、平板、桌面
-- 🌈 **渐变头像** - 多种头像模板可选（DiceBear API）
-- ⚡ **性能优化** - 骨架屏、乐观更新、懒加载
-- 🎭 **页面动画** - Framer Motion 提供流畅过渡效果
-- 🖼️ **图片查看器** - 支持图片预览和查看
-- 🎯 **浮动按钮** - 快速发布入口
+</div>
+
+---
+
+## 🌟 核心特性
+
+### 🔐 Web3 身份系统
+- **钱包连接** - 通过 RainbowKit 支持 MetaMask、Coinbase Wallet 等
+- **链上验证** - 签名验证钱包所有权，防止伪造
+- **多链支持** - 支持 Ethereum、BSC、Polygon、Arbitrum 等主流链
+- **NFT 头像** - 使用持有的 NFT 作为个人头像
+- **钱包追踪** - 实时追踪关注钱包的资产变化和交易
+
+### 🏆 声誉系统
+- **多维度评分** - 基于钱包年龄、活跃度、DeFi 参与、资产规模等
+- **5 级等级** - 🥉 Bronze → 🥈 Silver → 🥇 Gold → 💎 Diamond → 👑 Legend
+- **链上数据验证** - 真实的区块链数据，无法伪造
+- **声誉徽章** - 在动态、评论中展示用户等级
+- **排行榜** - 全站声誉排名，激励用户提升链上活跃度
+
+### 💬 社交功能
+- **发布动态** - 支持文字、图片、链接预览（280 字符限制）
+- **转发功能** - 转发他人动态并添加评论
+- **互动系统** - 点赞、评论（支持嵌套）、提及 (@mention)
+- **关注系统** - 关注用户，特别关注通知
+- **私信功能** - Telegram 风格的私信界面，实时消息推送
+- **热门动态** - 基于热度算法的趋势内容
+- **标签系统** - #话题标签，点击查看相关动态
+- **搜索功能** - 全文搜索用户和动态
+
+### 📊 DeFi 数据浏览器
+- **1000+ 协议** - 实时 TVL、分类、链分布、24h 变化
+- **收益率查询** - APY/APR 数据，筛选高收益池子
+- **代币价格** - WebSocket 实时价格推送（Binance）
+- **历史图表** - TVL/APY/价格历史数据可视化（Recharts）
+- **多时间范围** - 7d, 30d, 90d, 180d, 1y, All
+- **DeFi 嵌入** - 动态中嵌入协议/池子数据卡片
+- **PancakeSwap 集成** - 专属 Farm 和 Pool 数据
+- **一键认购** - 直接跳转到 DeFi 协议页面
+
+### 🔧 DeFi 工具
+- **Gas 费监控** - 实时查看主流链的 Gas Price
+- **钱包分析** - 分析钱包持仓、交易历史、DeFi 参与度
+- **协议比较** - 多个 DeFi 协议的数据对比
+- **收益计算器** - APY 收益计算和预测
+
+### 🛡️ 内容审核系统
+- **举报功能** - 用户可举报不当内容
+- **管理后台** - 管理员审核举报、封禁用户
+- **敏感词过滤** - 自动检测和过滤违规内容
+- **封禁管理** - 临时或永久封禁违规用户
+- **审核日志** - 完整的管理操作记录
+
+### 🔔 通知系统
+- **5 种通知类型** - 点赞、评论、转发、关注、发文
+- **实时推送** - Supabase Realtime，无需刷新
+- **未读计数** - 实时更新未读数量
+- **通知筛选** - 按类型查看通知
+
+---
 
 ## 🛠 技术栈
 
 ### 前端
-- **框架**: Next.js 15 (App Router)
-- **语言**: TypeScript
+- **框架**: Next.js 15 (App Router) + TypeScript
 - **样式**: Tailwind CSS v4
+- **状态管理**: React Context + React Query (TanStack Query)
 - **动画**: Framer Motion
-- **图标**: Lucide React
-- **验证**: Zod
-- **数据获取**: React Query (TanStack Query)
 - **图表**: Recharts
-- **工具**: Lodash, DOMPurify, React Intersection Observer
-- **实时数据**: Binance WebSocket (价格推送)
+- **Web3**: RainbowKit + Wagmi + Viem
+- **工具库**: Lodash, DOMPurify, Zod
 
 ### 后端
 - **数据库**: Supabase (PostgreSQL)
 - **认证**: Supabase Auth
-- **实时更新**: Supabase Realtime
+- **实时功能**: Supabase Realtime
 - **存储**: Supabase Storage（预留）
+- **缓存**: Redis (Upstash)
+
+### Web3 集成
+- **钱包连接**: RainbowKit
+- **区块链交互**: Wagmi + Viem
+- **链上数据**: Alchemy SDK
+- **NFT 数据**: Alchemy NFT API
+- **DeFi 数据**: DeFiLlama API
+- **价格数据**: CoinGecko + Binance WebSocket
 
 ### 部署
 - **平台**: Vercel
-- **CDN**: Vercel Edge Network
 - **构建**: Turbopack
+- **CDN**: Vercel Edge Network
+
+---
 
 ## 🚀 快速开始
 
 ### 环境要求
-
 - Node.js 18.x 或更高版本
 - npm / yarn / pnpm
 - Supabase 账号
+- Alchemy API Key（Web3 功能）
 
-### 安装步骤
-
-1. **克隆仓库**
+### 1. 克隆仓库
 ```bash
 git clone <your-repo-url>
 cd mini-social
 ```
 
-2. **安装依赖**
+### 2. 安装依赖
 ```bash
 npm install
 ```
 
-3. **配置环境变量**
+### 3. 配置环境变量
 
 创建 `.env.local` 文件：
+
 ```env
+# Supabase（必需）
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # 可选
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Alchemy（Web3 功能必需）
+NEXT_PUBLIC_ALCHEMY_API_KEY=your-alchemy-api-key
+
+# Redis（可选，用于缓存）
+UPSTASH_REDIS_URL=your-redis-url
+UPSTASH_REDIS_TOKEN=your-redis-token
+
+# 其他配置（可选）
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-project-id
 ```
 
-4. **设置 Supabase 数据库**
+### 4. 设置数据库
 
 依次在 Supabase SQL Editor 中运行以下脚本：
+
 ```bash
 # 1. 基础数据库结构
 supabase-setup.sql
@@ -113,18 +165,41 @@ supabase-migration-fix-counts.sql
 # 5. 标签和提及功能
 supabase-migration-hashtags-mentions.sql
 
-# 6. DeFi 数据缓存表（可选，用于 DeFi 功能）
+# 6. DeFi 数据缓存表
 supabase-migration-defillama.sql
+
+# 7. PancakeSwap 集成
+supabase-migration-pancakeswap.sql
+
+# 8. 钱包验证（任选一个版本）
+supabase-migration-wallet-step-by-step.sql
+
+# 9. 声誉系统
+supabase-migration-reputation-system.sql
+
+# 10. 私信系统
+supabase-migration-sprint5-messaging.sql
+
+# 11. 内容审核系统
+supabase-migration-sprint6-moderation.sql
+
+# 12. 钱包分析
+supabase-migration-sprint7-wallet-analysis.sql
+
+# 13. 启用实时功能
+supabase-enable-realtime.sql
 ```
 
-5. **启动开发服务器**
+### 5. 启动开发服务器
 ```bash
 npm run dev
 ```
 
 访问 [http://localhost:3000](http://localhost:3000) 查看应用。
 
-## 📦 可用脚本
+---
+
+## 📦 可用命令
 
 | 命令 | 说明 |
 |------|------|
@@ -132,10 +207,154 @@ npm run dev
 | `npm run build` | 构建生产版本 |
 | `npm run start` | 启动生产服务器 |
 | `npm run lint` | 运行 ESLint 检查 |
-| `npm run test:defillama` | 测试 DeFiLlama API 客户端 (TypeScript) |
-| `npm run test:defillama:full` | 完整集成测试（包含所有 API 端点） |
-| `npm run test:defillama:quick` | 快速测试（bash 脚本） |
+| `npm run test:defillama` | 测试 DeFiLlama API 客户端 |
+| `npm run test:defillama:full` | 完整集成测试 |
+| `npm run test:defillama:quick` | 快速测试（bash） |
 | `npm run test:frontend` | 前端 DeFi 功能测试 |
+| `npm run test:pancakeswap` | 测试 PancakeSwap 集成 |
+| `npm run test:web3` | 测试 Web3 集成 |
+
+---
+
+## 📁 项目结构
+
+```
+mini-social/
+├── app/                          # Next.js App Router
+│   ├── api/                     # API 路由
+│   │   ├── auth/               # 认证相关
+│   │   ├── posts/              # 动态相关
+│   │   ├── comments/           # 评论相关
+│   │   ├── users/              # 用户相关
+│   │   ├── notifications/      # 通知相关
+│   │   ├── messages/           # 私信相关
+│   │   ├── search/             # 搜索功能
+│   │   ├── wallet/             # 钱包相关
+│   │   ├── admin/              # 管理功能
+│   │   └── defi/               # DeFi 数据 API
+│   ├── profile/[username]/     # 个人主页
+│   ├── post/[postId]/          # 动态详情页
+│   ├── messages/               # 私信页面
+│   ├── wallet/                 # 钱包页面
+│   ├── leaderboard/            # 排行榜
+│   ├── defi/                   # DeFi 数据浏览器
+│   ├── gas/                    # Gas 费监控
+│   ├── admin/                  # 管理后台
+│   └── ...
+├── components/                  # React 组件
+│   ├── PostCard.tsx            # 动态卡片
+│   ├── CommentList.tsx         # 评论列表
+│   ├── Avatar.tsx              # 头像组件
+│   ├── WalletBadge.tsx         # 钱包验证徽章
+│   ├── ReputationCard.tsx      # 声誉卡片
+│   ├── messaging/              # 私信组件
+│   ├── defi/                   # DeFi 组件
+│   │   ├── charts/             # 图表组件（Recharts）
+│   │   └── ...
+│   └── ...
+├── lib/                        # 工具函数和配置
+│   ├── supabase.ts             # Supabase 客户端
+│   ├── defillama/              # DeFiLlama 客户端
+│   ├── pancakeswap/            # PancakeSwap 客户端
+│   ├── reputation/             # 声誉算法
+│   ├── etherscan/              # Etherscan 集成
+│   └── web3/                   # Web3 工具（计划中）
+├── types/                      # TypeScript 类型定义
+└── supabase-*.sql              # 数据库迁移脚本
+```
+
+---
+
+## 🗄️ 数据库架构
+
+### 核心数据表
+
+| 表名 | 说明 |
+|------|------|
+| `profiles` | 用户资料（用户名、头像、简介、钱包地址、声誉等） |
+| `posts` | 动态（内容、点赞数、评论数、转发） |
+| `likes` | 点赞记录 |
+| `comments` | 评论（支持嵌套） |
+| `follows` | 关注关系 |
+| `notifications` | 通知记录 |
+| `conversations` | 私信会话 |
+| `messages` | 私信消息 |
+| `wallet_verifications` | 钱包验证记录 |
+| `reputation_history` | 声誉历史记录 |
+| `reports` | 举报记录 |
+| `banned_users` | 封禁用户 |
+| `banned_words` | 敏感词列表 |
+| `defi_protocols` | DeFi 协议数据缓存 |
+| `defi_yields` | 收益率数据缓存 |
+| `defi_token_prices` | 代币价格缓存 |
+| `pancake_pools` | PancakeSwap 池子数据 |
+| `pancake_farms` | PancakeSwap Farm 数据 |
+
+### 关键特性
+- ✅ **RLS 策略** - 所有表都启用行级安全
+- ✅ **触发器** - 自动维护计数和通知
+- ✅ **索引优化** - 提升查询性能
+- ✅ **实时功能** - 私信和通知实时推送
+- ✅ **数据缓存** - DeFi 数据缓存减少 API 调用
+
+---
+
+## 🎯 核心功能详解
+
+### 1. 声誉系统
+
+声誉评分基于多个维度，真实反映用户的链上活跃度：
+
+| 维度 | 权重 | 最高分 | 评分标准 |
+|------|------|--------|----------|
+| 钱包年龄 | 20% | 20 分 | 基于首次交易时间 |
+| 活跃度 | 25% | 25 分 | 交易数量和频率 |
+| DeFi 参与 | 30% | 30 分 | 使用的 DeFi 协议数 |
+| 资产规模 | 15% | 15 分 | ETH 余额和代币价值 |
+| 社交活动 | 10% | 10 分 | 发文、点赞、评论数 |
+
+**等级划分**:
+- 🥉 Bronze (0-19 分)
+- 🥈 Silver (20-39 分)
+- 🥇 Gold (40-59 分)
+- 💎 Diamond (60-79 分)
+- 👑 Legend (80-100 分)
+
+### 2. DeFi 数据集成
+
+#### 数据来源
+- **DeFiLlama API** - 协议 TVL、收益率、链数据
+- **PancakeSwap API** - DEX 专属数据
+- **CoinGecko API** - 代币价格
+- **Binance WebSocket** - 实时价格推送
+
+#### 可视化图表
+- TVL 历史图表（Area Chart）
+- APY 趋势图（Line Chart）
+- 价格走势图（Candlestick Chart）
+- 迷你趋势图（Sparkline）
+
+### 3. 钱包验证流程
+
+```typescript
+1. 用户连接钱包（MetaMask）
+2. 生成随机 nonce
+3. 用户签名 nonce
+4. 后端验证签名
+5. 保存钱包地址到数据库
+6. 获取链上数据（Etherscan/Alchemy）
+7. 计算声誉分数
+8. 展示钱包徽章和声誉卡片
+```
+
+### 4. 私信系统
+
+- **Telegram 风格** - 左侧会话列表，右侧聊天窗口
+- **实时推送** - Supabase Realtime，无需刷新
+- **已读状态** - 消息已读/未读标记
+- **响应式设计** - 移动端自动切换视图
+
+---
 
 ## 🌍 部署到 Vercel
 
@@ -144,10 +363,7 @@ npm run dev
 1. 访问 [Vercel](https://vercel.com) 并登录
 2. 点击 "Add New Project"
 3. 导入你的 Git 仓库
-4. 配置环境变量：
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`（可选）
+4. 配置环境变量（见上文）
 5. 点击 "Deploy"
 
 ### 方法二：通过 Vercel CLI
@@ -169,104 +385,17 @@ vercel
    - 确保运行了所有数据库迁移脚本
    - 配置 Row Level Security (RLS) 策略
    - 在 Authentication → URL Configuration 中添加 Vercel 域名
+   - 启用 Realtime（私信功能）
 
 2. **环境变量检查**
    - 在 Vercel Dashboard 中验证环境变量
    - 重新部署以应用更改
 
-## 📁 项目结构
+3. **Alchemy 配置**
+   - 确保 API Key 有效
+   - 检查免费额度使用情况
 
-```
-mini-social/
-├── app/                          # Next.js App Router
-│   ├── api/                     # API 路由
-│   │   ├── auth/               # 认证相关
-│   │   ├── posts/              # 动态相关
-│   │   ├── comments/           # 评论相关
-│   │   ├── users/              # 用户相关
-│   │   ├── notifications/      # 通知相关
-│   │   ├── search/             # 搜索功能
-│   │   ├── hashtags/           # 标签功能
-│   │   ├── mentions/           # 提及功能
-│   │   └── defi/               # DeFi 数据 API
-│   │       ├── protocols/      # 协议数据
-│   │       ├── yields/         # 收益率数据
-│   │       ├── prices/         # 代币价格
-│   │       └── chains/         # 链数据
-│   ├── post/                   # 动态详情页
-│   ├── profile/                # 个人主页
-│   ├── search/                 # 搜索页面
-│   ├── trending/               # 热门动态
-│   ├── hashtag/                # 标签页面
-│   ├── defi/                   # DeFi 数据浏览器
-│   │   ├── page.tsx            # DeFi 主页（协议/收益率/价格）
-│   │   └── protocol/[slug]/    # 协议详情页
-│   ├── notifications/          # 通知页面
-│   ├── providers/              # React Context
-│   └── globals.css             # 全局样式
-├── components/                   # React 组件
-│   ├── PostCard.tsx            # 动态卡片
-│   ├── PostForm.tsx            # 发布表单
-│   ├── CommentList.tsx         # 评论列表
-│   ├── Avatar.tsx              # 头像组件
-│   ├── Navbar.tsx              # 导航栏
-│   ├── SearchBar.tsx           # 搜索栏
-│   ├── NotificationBell.tsx    # 通知铃铛
-│   ├── FollowButton.tsx        # 关注按钮
-│   ├── defi/                   # DeFi 组件
-│   │   ├── ProtocolCard.tsx    # 协议卡片
-│   │   ├── YieldCard.tsx       # 收益率卡片
-│   │   ├── DeFiEmbedPicker.tsx # DeFi 嵌入选择器
-│   │   ├── DeFiEmbedPreview.tsx# DeFi 嵌入预览
-│   │   └── charts/             # 图表组件（基于 Recharts）
-│   │       ├── TVLHistoryChart.tsx    # TVL 历史图表（支持多时间范围）
-│   │       ├── APYHistoryChart.tsx    # APY 趋势图表
-│   │       ├── PriceHistoryChart.tsx  # 价格历史图表（多图表类型）
-│   │       └── MiniTrendChart.tsx     # 迷你趋势图（7d/30d）
-│   └── ...                     # 更多组件
-├── lib/                         # 工具函数和配置
-│   ├── supabase.ts             # Supabase 客户端配置
-│   ├── supabase-api.ts         # 服务端 Supabase 客户端
-│   ├── utils.ts                # 通用工具函数
-│   └── defillama/              # DeFiLlama API 客户端
-│       ├── client.ts           # API 客户端
-│       ├── types.ts            # 类型定义
-│       └── README.md           # DeFi 客户端文档
-├── types/                       # TypeScript 类型定义
-│   └── database.ts             # 数据库类型
-├── hooks/                       # 自定义 React Hooks
-├── public/                      # 静态资源
-└── supabase-*.sql              # 数据库脚本
-```
-
-## 🗄️ 数据库架构
-
-### 主要数据表
-
-| 表名 | 说明 |
-|------|------|
-| `profiles` | 用户资料（用户名、头像、简介等） |
-| `posts` | 动态（内容、点赞数、评论数、转发） |
-| `likes` | 点赞记录 |
-| `comments` | 评论（支持嵌套） |
-| `follows` | 关注关系 |
-| `notifications` | 通知记录 |
-| `hashtags` | 标签 |
-| `post_hashtags` | 动态-标签关联 |
-| `mentions` | 提及记录 |
-| `defi_protocols` | DeFi 协议数据缓存（TVL、分类、链） |
-| `defi_yields` | 收益率池子数据缓存 |
-| `defi_token_prices` | 代币价格缓存（5分钟过期） |
-| `post_defi_embeds` | 动态中嵌入的 DeFi 数据快照 |
-
-### 关键特性
-
-- **RLS 策略**: 所有表都启用行级安全
-- **触发器**: 自动维护计数和通知
-- **索引优化**: 提升查询性能
-- **热度算法**: 基于互动和时间衰减
-
-详细数据库结构请查看 SQL 脚本文件。
+---
 
 ## 🔧 环境变量说明
 
@@ -274,64 +403,91 @@ mini-social/
 |--------|------|------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目 URL | ✅ 是 |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 匿名密钥 | ✅ 是 |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase 服务端密钥 | ⚠️ 可选 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase 服务端密钥 | ⚠️ 推荐 |
+| `NEXT_PUBLIC_ALCHEMY_API_KEY` | Alchemy API Key | ✅ 是 |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect 项目 ID | ⚠️ 推荐 |
+| `UPSTASH_REDIS_URL` | Redis 缓存 URL | ⚪ 可选 |
+| `UPSTASH_REDIS_TOKEN` | Redis 访问令牌 | ⚪ 可选 |
 
 > **注意**: 以 `NEXT_PUBLIC_` 开头的变量会暴露到客户端，切勿在其中存储敏感信息。
 
-## 💡 核心功能实现
+---
 
-### 认证系统
-- 基于 Supabase Auth
-- 使用 AuthProvider (React Context) 管理全局状态
-- 自动 token 刷新和会话管理
+## 💡 使用示例
 
-### 通知系统
-- 5 种通知类型：点赞、评论、转发、关注、发文
-- 数据库触发器自动创建通知
-- 实时未读计数更新
+### 连接钱包并验证
 
-### 搜索功能
-- PostgreSQL 全文搜索
-- 用户名实时搜索建议
-- 支持用户和动态搜索
+```typescript
+import { useAccount, useSignMessage } from 'wagmi'
+import { useAuth } from '@/app/providers/AuthProvider'
 
-### 热门动态
-- 热度分数 = 点赞×2 + 评论×3 + 转发×4 - 时间衰减
-- 数据库触发器自动更新
-- 缓存优化
+function WalletConnect() {
+  const { address, isConnected } = useAccount()
+  const { signMessage } = useSignMessage()
+  const { user } = useAuth()
 
-### DeFi 数据集成
-- **DeFiLlama API**: 集成链上数据查询
-- **协议查询**: 1000+ DeFi 协议（TVL、分类、链、24h变化）
-- **收益率池子**: APY 查询、筛选、排序
-- **代币价格**:
-  - WebSocket 实时推送（Binance，毫秒级）
-  - DeFiLlama 价格查询（历史价格、批量查询）
-  - 自动价格更新（定时 10 秒或实时 WebSocket）
-- **数据缓存**: Supabase 表缓存 API 响应（5分钟过期）
-- **DeFi 嵌入**: 动态中嵌入协议/池子数据卡片
-- **数据可视化**:
-  - TVL 历史图表（时间范围：7d, 30d, 90d, 180d, 1y, All）
-  - APY 趋势图（支持基础/奖励 APY 分解）
-  - 价格历史图表（多种图表类型：折线、面积、蜡烛图）
-  - 迷你趋势图（快速查看 7 天/30 天走势）
-  - 响应式设计，完美支持桌面和移动端
-  - 使用 Recharts 库，交互式 tooltip 和渐变效果
-- **客户端使用**:
-  ```typescript
-  import { defillama } from '@/lib/defillama'
+  const handleVerify = async () => {
+    // 1. 获取 nonce
+    const nonce = await fetch('/api/wallet/nonce').then(r => r.json())
 
-  // 获取协议数据
-  const protocols = await defillama.getProtocols()
+    // 2. 签名
+    const signature = await signMessage({
+      message: `Verify wallet: ${nonce}`
+    })
 
-  // 获取代币价格
-  const price = await defillama.getTokenPrice('ethereum', '0x...')
+    // 3. 验证
+    await fetch('/api/wallet/verify', {
+      method: 'POST',
+      body: JSON.stringify({ address, signature, nonce })
+    })
+  }
+}
+```
 
-  // 获取收益率
-  const yields = await defillama.getTopYields(10, 1000000)
-  ```
-- **测试**: `npm run test:defillama` / `npm run test:frontend`
-- **文档**: `lib/defillama/README.md`
+### 查询 DeFi 数据
+
+```typescript
+import { defillama } from '@/lib/defillama'
+
+// 获取协议列表
+const protocols = await defillama.getProtocols()
+
+// 获取协议详情
+const protocol = await defillama.getProtocol('aave')
+
+// 获取代币价格
+const price = await defillama.getTokenPrice('ethereum', '0x...')
+
+// 获取收益率数据
+const yields = await defillama.getTopYields(10, 1000000)
+```
+
+### 发送私信
+
+```typescript
+import { supabase } from '@/lib/supabase'
+
+// 1. 查找或创建会话
+const { data: conversation } = await supabase
+  .from('conversations')
+  .insert({
+    user1_id: currentUserId,
+    user2_id: targetUserId
+  })
+  .select()
+  .single()
+
+// 2. 发送消息
+await supabase
+  .from('messages')
+  .insert({
+    conversation_id: conversation.id,
+    sender_id: currentUserId,
+    content: 'Hello!'
+  })
+```
+
+---
 
 ## ❓ 常见问题
 
@@ -343,77 +499,97 @@ mini-social/
 3. 验证是否运行了所有数据库脚本
 4. 检查 Supabase 的 URL 配置中是否添加了部署域名
 
-### 注册时提示 email rate limit
-
-**原因**: Supabase 的安全限制
+### 钱包连接失败
 
 **解决方案**:
-- 开发环境：在 Supabase Dashboard → Authentication → Email 中禁用 "Confirm email"
-- 生产环境：等待限制解除或联系 Supabase 支持
-
-### 构建失败
-
-**检查清单**:
-1. Node.js 版本 ≥ 18.x
-2. 删除 `node_modules` 和 `.next` 后重新安装
-3. 解决所有 TypeScript 类型错误
-4. 确认环境变量已正确配置
-
-### 热更新不工作
-
-**解决方案**:
-```bash
-# 清除缓存并重启
-rm -rf .next
-npm run dev
-```
+1. 确保已安装 MetaMask 或其他钱包插件
+2. 检查 Alchemy API Key 是否有效
+3. 确认 WalletConnect Project ID 已配置
+4. 查看浏览器控制台错误信息
 
 ### DeFi 图表不显示
 
-**现象**: 访问 DeFi 协议详情页时，图表区域空白或显示 "No data"
+**解决方案**:
+1. 检查浏览器控制台是否有错误
+2. 确认已运行 `supabase-migration-defillama.sql`
+3. 验证 DeFiLlama API 可访问（运行 `npm run test:defillama`）
+4. 清除缓存：`rm -rf .next && npm run dev`
 
-**常见原因**:
-1. 数据未正确加载
-2. 图表组件渲染问题（已在最新版本修复）
+### 私信功能不工作
 
 **解决方案**:
-1. 检查浏览器控制台是否有错误信息
-2. 确认已运行 `supabase-migration-defillama.sql` 脚本
-3. 验证 DeFiLlama API 可访问（运行 `npm run test:defillama`）
-4. 清除缓存并重新构建：
-   ```bash
-   rm -rf .next
-   npm run dev
-   ```
-5. 如果问题持续，参考 `CLAUDE.md` 中的 "Common Gotchas" 第 7 条
+1. 确认已运行 `supabase-migration-sprint5-messaging.sql`
+2. 在 Supabase Dashboard 启用 Realtime
+3. 运行 `supabase-enable-realtime.sql` 启用表级实时功能
+4. 检查浏览器控制台 WebSocket 连接状态
 
-**注意**: 最新版本已修复 Recharts 在 Next.js 15 + Turbopack 环境下的渲染问题，图表现在可以正常显示。
+---
 
 ## 🎯 性能优化
 
-- ✅ 数据库索引优化
-- ✅ 乐观更新减少等待
-- ✅ 骨架屏提升感知性能
-- ✅ Next.js 自动代码分割
-- ✅ Turbopack 加速开发构建
-- ✅ 图片懒加载
-- ✅ API 路由缓存策略
+- ✅ **数据库索引** - 为常用查询字段创建索引
+- ✅ **乐观更新** - 点赞、关注等操作立即响应
+- ✅ **骨架屏** - 提升感知性能
+- ✅ **Next.js 优化** - 自动代码分割和图片优化
+- ✅ **Turbopack** - 加速开发构建
+- ✅ **API 缓存** - Redis 缓存热点数据
+- ✅ **懒加载** - 图片和组件按需加载
+- ✅ **WebSocket** - 实时数据推送减少轮询
+
+---
 
 ## 🔒 安全措施
 
-- ✅ Row Level Security (RLS) 全覆盖
-- ✅ XSS 防护（DOMPurify）
-- ✅ CSRF 保护
-- ✅ 输入验证（Zod）
-- ✅ SQL 注入防护（参数化查询）
-- ✅ Rate limiting（Supabase 内置）
+- ✅ **Row Level Security (RLS)** - 数据库级别访问控制
+- ✅ **XSS 防护** - DOMPurify 清理用户输入
+- ✅ **CSRF 保护** - Supabase Auth 内置保护
+- ✅ **输入验证** - Zod 验证所有表单输入
+- ✅ **SQL 注入防护** - 参数化查询
+- ✅ **Rate Limiting** - API 速率限制
+- ✅ **内容审核** - 敏感词过滤和举报系统
+- ✅ **签名验证** - 钱包签名验证防伪造
+
+---
 
 ## 📚 相关文档
 
-- [CLAUDE.md](./CLAUDE.md) - 开发指南和架构说明
+- [CLAUDE.md](./CLAUDE.md) - 开发指南和架构详解
+- [PROJECT_ROADMAP.md](./PROJECT_ROADMAP.md) - 项目路线图和进度
+- [WEB3_SERVICES_ARCHITECTURE.md](./WEB3_SERVICES_ARCHITECTURE.md) - Web3 服务架构
+- [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) - 数据库设置指南
 - [NOTIFICATIONS-SETUP.md](./NOTIFICATIONS-SETUP.md) - 通知系统详解
-- [README-NESTED-COMMENTS.md](./README-NESTED-COMMENTS.md) - 嵌套评论实现
-- [OPTIMIZATION-REPORT.md](./OPTIMIZATION-REPORT.md) - 性能优化报告
+- [WALLET_VERIFICATION_GUIDE.md](./WALLET_VERIFICATION_GUIDE.md) - 钱包验证指南
+- [lib/defillama/README.md](./lib/defillama/README.md) - DeFiLlama 客户端文档
+- [PANCAKESWAP_INTEGRATION.md](./PANCAKESWAP_INTEGRATION.md) - PancakeSwap 集成说明
+
+---
+
+## 🛣️ 开发路线图
+
+### ✅ 已完成
+- [x] 核心社交功能（发文、点赞、评论、关注）
+- [x] DeFi 数据集成（DeFiLlama、PancakeSwap）
+- [x] 钱包验证与声誉系统
+- [x] NFT 头像功能
+- [x] 私信系统（Telegram 风格）
+- [x] 内容审核系统
+- [x] 排行榜
+- [x] Gas 费监控
+
+### 🔄 进行中
+- [ ] 钱包追踪功能完善
+- [ ] Web3 多服务集成（Alchemy + Covalent + Ankr）
+- [ ] 移动端优化
+
+### 📋 计划中
+- [ ] 多链声誉聚合
+- [ ] 链上动态（智能合约）
+- [ ] 代币打赏功能
+- [ ] 群组/频道功能
+- [ ] DAO 治理
+- [ ] 移动端 App
+
+---
 
 ## 🤝 贡献
 
@@ -426,14 +602,24 @@ npm run dev
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
+---
+
 ## 📄 许可证
 
 MIT License
 
+---
+
 ## 📞 联系方式
 
-如有问题，请提交 Issue 或联系项目维护者。
+如有问题或建议，请提交 Issue 或联系项目维护者。
 
 ---
 
-**🚀 Happy Coding!**
+<div align="center">
+
+**🚀 Built with ❤️ using Next.js, Supabase & Web3**
+
+[⬆ 回到顶部](#minisocial---web3-社交平台)
+
+</div>
