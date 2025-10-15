@@ -94,35 +94,69 @@ function SearchContent() {
     )
   }
 
+  const [searchInput, setSearchInput] = useState(query)
+
+  // 当 query 变化时更新 searchInput
+  useEffect(() => {
+    setSearchInput(query)
+  }, [query])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchInput.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchInput.trim())}`)
+    }
+  }
+
   if (!query) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16">
-        <div className="text-center">
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">搜索</h1>
+
+        {/* 搜索框 */}
+        <form onSubmit={handleSearch} className="mb-8">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="搜索用户或动态..."
+              className="w-full pl-12 pr-4 py-3 bg-gray-100 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+              autoFocus
+            />
+          </div>
+        </form>
+
+        {/* 空状态提示 */}
+        <div className="text-center py-12">
           <Search size={48} className="mx-auto mb-4 text-gray-300" />
           <h2 className="text-xl font-semibold text-gray-700 mb-2">搜索用户或动态</h2>
-          <p className="text-gray-500">在导航栏中输入搜索词开始搜索</p>
+          <p className="text-gray-500">输入关键词开始搜索</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* 搜索标题 */}
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-2">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition"
-            aria-label="返回"
-          >
-            <ArrowLeft size={20} className="text-gray-600" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">
-            搜索结果：{query}
-          </h1>
+    <div className="max-w-2xl mx-auto px-4 py-8">
+      {/* 搜索框 */}
+      <form onSubmit={handleSearch} className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="搜索用户或动态..."
+            className="w-full pl-12 pr-4 py-3 bg-gray-100 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+          />
         </div>
-        <p className="text-gray-600 ml-14">
+      </form>
+
+      {/* 搜索结果提示 */}
+      <div className="mb-6">
+        <p className="text-gray-600">
           {activeTab === 'users'
             ? `找到 ${usersTotal} 个用户`
             : `找到 ${postsTotal} 条动态`}

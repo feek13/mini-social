@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { defillama } from '@/lib/defillama'
+import { RedisCache, CACHE_TTL } from '@/lib/redis'
 import { TokenIdentifier } from '@/lib/defillama/types'
 
 // 配置路由段缓存
@@ -128,6 +129,30 @@ export async function POST(request: NextRequest) {
       console.log(`  ${i + 1}. ${t.chain}:${t.address.substring(0, 10)}...`)
     })
 
+    // 尝试从 Redis 缓存获取（基于代币列表生成唯一 key）
+    const tokenKey = validTokens
+      .map(t => `${t.chain}:${t.address}`)
+      .sort()
+      .join(',')
+    const redisCacheKey = `defi:prices:${tokenKey}`
+
+    const cachedData = await RedisCache.get<any>(redisCacheKey)
+    if (cachedData) {
+      console.log('✅ Redis 缓存命中')
+      return NextResponse.json(
+        {
+          ...cachedData,
+          cached: true,
+          cache_source: 'redis',
+        },
+        {
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+          },
+        }
+      )
+    }
+
     // 步骤 4: 调用 DeFiLlama API 获取价格
     console.log('\n[获取价格] 从 DeFiLlama API 获取...')
     const startTime = Date.now()
@@ -180,13 +205,21 @@ export async function POST(request: NextRequest) {
 
     console.log('='.repeat(60))
 
+    const responseData = {
+      prices,
+      count: priceCount,
+      requested: validTokens.length,
+      missing: missingCoins.length > 0 ? missingCoins : undefined,
+      cache_source: 'fresh',
+    }
+
+    // 存入 Redis 缓存（异步，不阻塞响应）
+    RedisCache.set(redisCacheKey, responseData, CACHE_TTL.DEFI_PRICES).catch((err) => {
+      console.error('[Prices API] Redis cache failed:', err)
+    })
+
     return NextResponse.json(
-      {
-        prices,
-        count: priceCount,
-        requested: validTokens.length,
-        missing: missingCoins.length > 0 ? missingCoins : undefined
-      },
+      responseData,
       {
         headers: {
           'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',

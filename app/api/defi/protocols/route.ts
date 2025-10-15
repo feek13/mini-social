@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase-api'
 import { unifiedDefi } from '@/lib/defi/unified-client'
+import { RedisCache, generateRedisKey, CACHE_TTL } from '@/lib/redis'
 import type { Protocol } from '@/lib/defillama/types'
 
 // 配置路由段缓存
@@ -51,6 +52,34 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // 尝试从 Redis 缓存获取
+    const redisCacheKey = generateRedisKey('defi:protocols', {
+      search: search || 'all',
+      category: category || 'all',
+      chain: chain || 'all',
+      minTvl: minTvl || 0,
+      limit,
+      sortBy: sortBy || 'tvl',
+      order: order || 'desc',
+    })
+
+    const cachedData = await RedisCache.get<Protocol[]>(redisCacheKey)
+    if (cachedData) {
+      console.log(`✅ Redis 缓存命中 (${cachedData.length} 个协议)`)
+      return NextResponse.json(
+        {
+          protocols: cachedData,
+          cached: true,
+          cache_source: 'redis',
+        },
+        {
+          headers: {
+            'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
+          },
+        }
+      )
+    }
+
     const startTime = Date.now()
 
     // 使用统一 DeFi 客户端（自动处理缓存和过滤）
@@ -66,6 +95,11 @@ export async function GET(request: NextRequest) {
 
     const duration = Date.now() - startTime
     console.log(`✅ 获取 ${protocols.length} 个协议 (${duration}ms)`)
+
+    // 存入 Redis 缓存（异步，不阻塞响应）
+    RedisCache.set(redisCacheKey, protocols, CACHE_TTL.DEFI_PROTOCOLS).catch((err) => {
+      console.error('[Protocols API] Redis cache failed:', err)
+    })
 
     // 后台缓存到数据库（仅全量数据）
     if (!search && !category && !chain && !minTvl) {

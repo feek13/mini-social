@@ -16,17 +16,35 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseClient()
 
-    // 搜索用户（前 5 个）
-    const { data: users, error: usersError } = await supabase
+    // 搜索用户 - 分两步以实现更好的相关性排序
+    // 1. 优先匹配：用户名开头匹配
+    const { data: priorityUsers, error: priorityError } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url, avatar_template, bio')
-      .or(`username.ilike.%${query}%,bio.ilike.%${query}%`)
+      .select('id, username, avatar_url, avatar_template, bio, nft_avatar_url')
+      .ilike('username', `${query}%`)
       .order('username')
-      .limit(5)
+      .limit(10)
 
-    if (usersError) {
-      console.error('Error fetching user suggestions:', usersError)
+    if (priorityError) {
+      console.error('Error fetching priority user suggestions:', priorityError)
     }
+
+    // 2. 次优匹配：包含关键词的用户（排除已在优先结果中的）
+    const priorityIds = priorityUsers?.map(u => u.id) || []
+    const { data: secondaryUsers, error: secondaryError } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, avatar_template, bio, nft_avatar_url')
+      .or(`username.ilike.%${query}%,bio.ilike.%${query}%`)
+      .not('id', 'in', `(${priorityIds.length > 0 ? priorityIds.join(',') : '00000000-0000-0000-0000-000000000000'})`)
+      .order('username')
+      .limit(10)
+
+    if (secondaryError) {
+      console.error('Error fetching secondary user suggestions:', secondaryError)
+    }
+
+    // 合并结果，优先结果在前
+    const users = [...(priorityUsers || []), ...(secondaryUsers || [])].slice(0, 10)
 
     // 搜索动态内容关键词（获取前 3 个匹配的动态作为关键词建议）
     const { data: posts, error: postsError } = await supabase

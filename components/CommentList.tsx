@@ -6,6 +6,8 @@ import { Trash2, MessageSquare } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Comment } from '@/types/database'
 import Avatar from '@/components/Avatar'
+import WalletBadge from '@/components/WalletBadge'
+import ReportButton from '@/components/ReportButton'
 import { formatRelativeTime } from '@/lib/utils'
 
 interface CommentListProps {
@@ -96,6 +98,12 @@ export default function CommentList({
                     >
                       {comment.user?.username || '未知用户'}
                     </Link>
+                    <WalletBadge
+                      isVerified={!!comment.user?.wallet_address}
+                      reputationLevel={comment.user?.reputation_level}
+                      username={comment.user?.username}
+                      size="sm"
+                    />
                     <span className="text-gray-400 text-xs flex-shrink-0">·</span>
                     <span className="text-gray-500 text-xs flex-shrink-0" suppressHydrationWarning>
                       {formatRelativeTime(comment.created_at)}
@@ -107,6 +115,18 @@ export default function CommentList({
                     {comment.content}
                   </p>
                 </div>
+
+                {/* 举报按钮（非所有者可见） */}
+                {user && !isOwner && (
+                  <div className="opacity-0 group-hover:opacity-100">
+                    <ReportButton
+                      reportType="comment"
+                      targetId={comment.id}
+                      iconOnly={true}
+                      className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all p-1.5 rounded-full active:scale-95 flex-shrink-0"
+                    />
+                  </div>
+                )}
 
                 {/* 删除按钮（仅所有者可见） */}
                 {isOwner && onDelete && (

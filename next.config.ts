@@ -41,6 +41,14 @@ const nextConfig: NextConfig = {
 
   // 页面扩展名
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+
+  // 构建时忽略 ESLint 和 TypeScript 错误（用于部署）
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;

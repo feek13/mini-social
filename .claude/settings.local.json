@@ -66,7 +66,21 @@
       "Bash(cat:*)",
       "Bash(node:*)",
       "WebFetch(domain:docs.dexscreener.com)",
-      "Bash(/tmp/test-phase4.sh:*)"
+      "Bash(/tmp/test-phase4.sh:*)",
+      "mcp__chrome-devtools__list_console_messages",
+      "Bash(find:*)",
+      "WebFetch(domain:docs.etherscan.io)",
+      "Read(//var/folders/l6/vqzbztvn2j58pk7xw5yvqrkm0000gn/T/chrome-devtools-mcp-Dr106Z/**)",
+      "mcp__chrome-devtools__fill_form",
+      "WebFetch(domain:gmgn.ai)",
+      "Bash(xargs kill:*)",
+      "Bash(rm:*)",
+      "mcp__chrome-devtools__resize_page",
+      "Bash(npx supabase db execute --sql \"DELETE FROM wallet_snapshots WHERE wallet_address = ''0xd8da6bf26964af9d7eed9e03e53415d37aa96045'';\")",
+      "Bash(npx tsx:*)",
+      "Bash(source:*)",
+      "Bash(redis-cli:*)",
+      "Read(//var/folders/l6/vqzbztvn2j58pk7xw5yvqrkm0000gn/T/chrome-devtools-mcp-aisCjh/**)"
     ],
     "deny": [],
     "ask": []

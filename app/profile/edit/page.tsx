@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Image as ImageIcon } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Avatar from '@/components/Avatar'
 import AvatarSelector from '@/components/AvatarSelector'
+import NFTAvatarPicker from '@/components/NFTAvatarPicker'
+import WalletVerification from '@/components/WalletVerification'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { supabase } from '@/lib/supabase'
+import { useAccount } from 'wagmi'
 
 interface ProfileData {
   id: string
@@ -17,12 +20,16 @@ interface ProfileData {
   avatar_template?: string
   bio?: string
   location?: string
+  nft_avatar_url?: string
+  nft_contract_address?: string
+  nft_token_id?: string
   created_at: string
 }
 
 export default function EditProfilePage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { isConnected } = useAccount()
 
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [formData, setFormData] = useState({
@@ -30,10 +37,14 @@ export default function EditProfilePage() {
     avatar_template: '',
     bio: '',
     location: '',
+    nft_avatar_url: '',
+    nft_contract_address: '',
+    nft_token_id: '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showNFTPicker, setShowNFTPicker] = useState(false)
 
   // 加载用户资料
   useEffect(() => {
@@ -76,6 +87,9 @@ export default function EditProfilePage() {
           avatar_template: result.profile.avatar_template || '',
           bio: result.profile.bio || '',
           location: result.profile.location || '',
+          nft_avatar_url: result.profile.nft_avatar_url || '',
+          nft_contract_address: result.profile.nft_contract_address || '',
+          nft_token_id: result.profile.nft_token_id || '',
         })
       } catch (err) {
         console.error('加载资料错误:', err)
@@ -87,6 +101,31 @@ export default function EditProfilePage() {
 
     loadProfile()
   }, [user, router])
+
+  // 处理 NFT 选择
+  const handleNFTSelect = (nft: any) => {
+    if (nft) {
+      setFormData(prev => ({
+        ...prev,
+        nft_avatar_url: nft.imageUrl || '',
+        nft_contract_address: nft.contractAddress || '',
+        nft_token_id: nft.tokenId || '',
+        // 清空普通头像设置，使用 NFT
+        avatar_template: '',
+      }))
+    }
+    setShowNFTPicker(false)
+  }
+
+  // 清除 NFT 头像
+  const handleClearNFT = () => {
+    setFormData(prev => ({
+      ...prev,
+      nft_avatar_url: '',
+      nft_contract_address: '',
+      nft_token_id: '',
+    }))
+  }
 
   // 表单验证
   const validateForm = (): string | null => {
@@ -195,13 +234,35 @@ export default function EditProfilePage() {
                   当前头像预览
                 </label>
                 <div className="relative">
-                  <Avatar
-                    username={formData.username || profile?.username}
-                    avatarUrl={profile?.avatar_url}
-                    avatarTemplate={formData.avatar_template}
-                    size="xl"
-                    className="!w-[120px] !h-[120px] sm:!w-[150px] sm:!h-[150px] ring-4 ring-white shadow-xl"
-                  />
+                  {formData.nft_avatar_url ? (
+                    // NFT 头像
+                    <div className="relative group">
+                      <img
+                        src={formData.nft_avatar_url}
+                        alt="NFT Avatar"
+                        className="!w-[120px] !h-[120px] sm:!w-[150px] sm:!h-[150px] rounded-full ring-4 ring-purple-500 shadow-xl object-cover"
+                      />
+                      <div className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                        NFT
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearNFT}
+                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-red-600"
+                      >
+                        清除 NFT
+                      </button>
+                    </div>
+                  ) : (
+                    // 普通头像
+                    <Avatar
+                      username={formData.username || profile?.username}
+                      avatarUrl={profile?.avatar_url}
+                      avatarTemplate={formData.avatar_template}
+                      size="xl"
+                      className="!w-[120px] !h-[120px] sm:!w-[150px] sm:!h-[150px] ring-4 ring-white shadow-xl"
+                    />
+                  )}
                 </div>
                 <p className="text-xs text-gray-500 mt-2 sm:mt-3 text-center">
                   {formData.username || '用户名'}
@@ -220,6 +281,23 @@ export default function EditProfilePage() {
                     setFormData((prev) => ({ ...prev, avatar_template: templateId }))
                   }
                 />
+
+                {/* NFT 头像选择按钮 */}
+                {isConnected && (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowNFTPicker(true)}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 transition shadow-md hover:shadow-lg"
+                    >
+                      <ImageIcon className="w-5 h-5" />
+                      <span>使用我的 NFT 作为头像</span>
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      从你的钱包中选择一个 NFT 作为头像
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* 3. 用户名输入 */}
@@ -315,9 +393,29 @@ export default function EditProfilePage() {
                 </button>
               </div>
             </form>
+
+            {/* 7. 钱包验证（表单外独立区域） */}
+            <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-gray-200">
+              <WalletVerification />
+            </div>
           </div>
         )}
       </main>
+
+      {/* NFT Avatar Picker Modal */}
+      {showNFTPicker && (
+        <NFTAvatarPicker
+          onSelect={handleNFTSelect}
+          selectedNFT={formData.nft_avatar_url ? {
+            contractAddress: formData.nft_contract_address,
+            tokenId: formData.nft_token_id,
+            imageUrl: formData.nft_avatar_url,
+            name: 'Current NFT',
+            tokenType: 'ERC721'
+          } : null}
+          onClose={() => setShowNFTPicker(false)}
+        />
+      )}
     </div>
   )
 }

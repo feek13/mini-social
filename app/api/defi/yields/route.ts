@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServiceClient } from '@/lib/supabase-api'
 import { unifiedDefi } from '@/lib/defi/unified-client'
+import { RedisCache, generateRedisKey, CACHE_TTL } from '@/lib/redis'
 import type { YieldPool } from '@/lib/defillama/types'
 import { aggregatePools } from '@/lib/defi-utils'
 
@@ -80,6 +81,37 @@ export async function GET(request: NextRequest) {
 
     const farmsOnly = farmsOnlyParam === 'true'
 
+    // 尝试从 Redis 缓存获取
+    const redisCacheKey = generateRedisKey('defi:yields', {
+      category,
+      chain: chain || 'all',
+      protocol: protocol || 'all',
+      minApy,
+      minTvl,
+      stablecoin: stablecoin !== undefined ? stablecoin : 'any',
+      farmsOnly,
+      sortBy,
+      order,
+      limit,
+    })
+
+    const cachedData = await RedisCache.get<YieldPool[]>(redisCacheKey)
+    if (cachedData) {
+      console.log(`✅ Redis 缓存命中 (${cachedData.length} 个池子)`)
+      return NextResponse.json(
+        {
+          pools: cachedData,
+          cached: true,
+          cache_source: 'redis',
+        },
+        {
+          headers: {
+            'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
+          },
+        }
+      )
+    }
+
     // 使用统一 DeFi 客户端（自动处理缓存和过滤）
     let pools = await unifiedDefi.getYields({
       protocol,
@@ -124,10 +156,16 @@ export async function GET(request: NextRequest) {
     console.log(`📦 返回 ${limitedPools.length} 条数据`)
     console.log('='.repeat(60))
 
+    // 存入 Redis 缓存（异步，不阻塞响应）
+    RedisCache.set(redisCacheKey, limitedPools, CACHE_TTL.DEFI_YIELDS).catch((err) => {
+      console.error('[Yields API] Redis cache failed:', err)
+    })
+
     return NextResponse.json(
       {
         pools: limitedPools,
-        cached: false // UnifiedClient 内部使用内存缓存
+        cached: false,
+        cache_source: 'fresh',
       },
       {
         headers: {

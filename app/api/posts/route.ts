@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth'
 import { PostSchema, validateData } from '@/lib/validation'
 import { rateLimitByType } from '@/lib/rateLimit'
 import { sanitizeText } from '@/lib/sanitize'
+import { filterContent, isUserBanned } from '@/lib/content-filter'
 
 // 配置路由段缓存
 export const dynamic = 'force-dynamic' // 禁用静态生成
@@ -155,7 +156,16 @@ export async function POST(request: NextRequest) {
 
     const { user, accessToken } = auth
 
-    // 2. 速率限制检查
+    // 2. 检查用户是否被封禁
+    const isBanned = await isUserBanned(user.id)
+    if (isBanned) {
+      return NextResponse.json(
+        { error: '您的账号已被封禁，无法发布内容' },
+        { status: 403 }
+      )
+    }
+
+    // 3. 速率限制检查
     const rateLimit = rateLimitByType(user.id, 'normal')
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -226,7 +236,26 @@ export async function POST(request: NextRequest) {
       }
 
       // 创建引用转发
-      const trimmedContent = content ? sanitizeText(content.trim()) : ''
+      let trimmedContent = content ? sanitizeText(content.trim()) : ''
+
+      // 如果有转发评论，进行内容过滤
+      if (trimmedContent) {
+        const filterResult = await filterContent(trimmedContent)
+
+        if (filterResult.isBlocked) {
+          return NextResponse.json(
+            {
+              error: '内容包含严重违规内容，无法发布',
+              details: filterResult.matchedWords.map(w => `${w.word} (${w.severity})`)
+            },
+            { status: 400 }
+          )
+        }
+
+        // 使用过滤后的内容
+        trimmedContent = filterResult.filteredContent
+      }
+
       const { data: post, error: insertError } = await supabase
         .from('posts')
         .insert([
@@ -285,9 +314,27 @@ export async function POST(request: NextRequest) {
     const validatedData = validation.data
 
     // 4. 清理用户输入
-    const trimmedContent = validatedData.content ? sanitizeText(validatedData.content.trim()) : ''
+    let trimmedContent = validatedData.content ? sanitizeText(validatedData.content.trim()) : ''
 
-    // 5. 使用带认证的客户端
+    // 5. 内容过滤检查
+    if (trimmedContent) {
+      const filterResult = await filterContent(trimmedContent)
+
+      if (filterResult.isBlocked) {
+        return NextResponse.json(
+          {
+            error: '内容包含严重违规内容，无法发布',
+            details: filterResult.matchedWords.map(w => `${w.word} (${w.severity})`)
+          },
+          { status: 400 }
+        )
+      }
+
+      // 使用过滤后的内容
+      trimmedContent = filterResult.filteredContent
+    }
+
+    // 6. 使用带认证的客户端
     const supabase = getSupabaseClientWithAuth(accessToken!)
 
     // 6. 插入新动态

@@ -1,24 +1,32 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowUpRight, ArrowDownRight, TrendingUp, ArrowRight } from 'lucide-react'
 import { Protocol } from '@/lib/defillama/types'
 import { formatTVL, formatChange, getChangeColor } from '@/lib/utils'
+import ExternalLinks from './ExternalLinks'
 
 interface ProtocolCardProps {
   protocol: Protocol
 }
 
 export default function ProtocolCard({ protocol }: ProtocolCardProps) {
-  const { name, logo, category, tvl, change_1d, change_7d, chains, slug } = protocol
+  const router = useRouter()
+  const { name, logo, category, tvl, change_1d, change_7d, chains, slug, url, address, chain } = protocol
 
   const displayChains = chains.slice(0, 3)
   const remainingChains = chains.length - 3
 
+  const handleCardClick = () => {
+    router.push(`/defi/protocol/${slug}`)
+  }
+
   return (
-    <Link href={`/defi/protocol/${slug}`} className="block">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-lg hover:border-blue-200 transition-all cursor-pointer group h-full flex flex-col">
+    <div
+      onClick={handleCardClick}
+      className="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 hover:shadow-lg hover:border-blue-200 transition-all cursor-pointer group h-full flex flex-col"
+    >
         {/* 顶部：Logo + 名称 + 分类 */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -90,7 +98,7 @@ export default function ProtocolCard({ protocol }: ProtocolCardProps) {
           </div>
         </div>
 
-        {/* 底部：支持的链 + 查看详情按钮 */}
+        {/* 底部：支持的链 + 外部链接 + 查看详情按钮 */}
         <div className="space-y-3 mt-auto">
           {chains.length > 0 && (
             <div>
@@ -113,12 +121,19 @@ export default function ProtocolCard({ protocol }: ProtocolCardProps) {
             </div>
           )}
 
+          {/* 外部链接 */}
+          <ExternalLinks
+            protocolName={name}
+            url={url}
+            address={address}
+            chain={chain}
+          />
+
           <div className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-blue-500 text-white text-sm font-semibold rounded-lg group-hover:bg-blue-600 transition-colors">
             查看详情
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>
-      </div>
-    </Link>
+    </div>
   )
 }

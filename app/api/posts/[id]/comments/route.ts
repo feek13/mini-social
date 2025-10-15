@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseClient } from '@/lib/supabase-api' // import { createClient } from '@supabase/supabase-js'
 import { extractMentions } from '@/lib/textParser'
+import { filterContent, isUserBanned } from '@/lib/content-filter'
 
 // GET - 获取动态的评论列表
 export async function GET(
@@ -88,6 +89,15 @@ export async function POST(
       )
     }
 
+    // 检查用户是否被封禁
+    const isBanned = await isUserBanned(user.id)
+    if (isBanned) {
+      return NextResponse.json(
+        { error: '您的账号已被封禁，无法发表评论' },
+        { status: 403 }
+      )
+    }
+
     const { id: postId } = await params
 
     if (!postId) {
@@ -108,7 +118,7 @@ export async function POST(
       )
     }
 
-    const trimmedContent = content.trim()
+    let trimmedContent = content.trim()
 
     if (trimmedContent.length === 0) {
       return NextResponse.json(
@@ -123,6 +133,22 @@ export async function POST(
         { status: 400 }
       )
     }
+
+    // 内容过滤检查
+    const filterResult = await filterContent(trimmedContent)
+
+    if (filterResult.isBlocked) {
+      return NextResponse.json(
+        {
+          error: '评论包含严重违规内容，无法发布',
+          details: filterResult.matchedWords.map(w => `${w.word} (${w.severity})`)
+        },
+        { status: 400 }
+      )
+    }
+
+    // 使用过滤后的内容
+    trimmedContent = filterResult.filteredContent
 
     // 检查动态是否存在
     const { data: post, error: postError } = await supabase

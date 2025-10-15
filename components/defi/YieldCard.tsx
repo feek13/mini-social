@@ -53,9 +53,33 @@ export default function YieldCard({ pool }: YieldCardProps) {
     ? getPredictionStyle(predictions.predictedClass)
     : null
 
+  // 获取区块链浏览器 URL
+  const getEtherscanUrl = () => {
+    const chainLower = chain.toLowerCase()
+
+    if (chainLower.includes('ethereum') || chainLower === 'eth') {
+      return 'https://etherscan.io'
+    } else if (chainLower.includes('bsc') || chainLower.includes('binance')) {
+      return 'https://bscscan.com'
+    } else if (chainLower.includes('polygon')) {
+      return 'https://polygonscan.com'
+    } else if (chainLower.includes('arbitrum')) {
+      return 'https://arbiscan.io'
+    } else if (chainLower.includes('optimism')) {
+      return 'https://optimistic.etherscan.io'
+    } else if (chainLower.includes('base')) {
+      return 'https://basescan.org'
+    }
+
+    // 默认返回 Etherscan
+    return 'https://etherscan.io'
+  }
+
+  const etherscanBaseUrl = getEtherscanUrl()
+
   return (
     <div
-      className={`rounded-xl shadow-sm border p-4 sm:p-5 hover:shadow-md transition-all animate-fade-in-up cursor-pointer group ${
+      className={`rounded-xl shadow-sm border p-4 sm:p-5 hover:shadow-md transition-all animate-fade-in-up group ${
         highAPY
           ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-green-200 hover:border-green-300'
           : 'bg-white border-gray-100 hover:border-gray-200'
@@ -218,6 +242,18 @@ export default function YieldCard({ pool }: YieldCardProps) {
             </span>
           </div>
         </div>
+
+        {/* Etherscan 链接 */}
+        <a
+          href={`${etherscanBaseUrl}/search?q=${encodeURIComponent(project)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span>在区块链浏览器上搜索</span>
+          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+        </a>
 
         {/* 查看详情按钮 */}
         <a

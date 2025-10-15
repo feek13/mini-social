@@ -8,11 +8,13 @@ import { Heart, MessageCircle, Trash2, Repeat2, Link as LinkIcon } from 'lucide-
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Post } from '@/types/database'
 import Avatar from '@/components/Avatar'
+import WalletBadge from '@/components/WalletBadge'
 import ImageViewer from '@/components/ImageViewer'
 import RepostDialog from '@/components/RepostDialog'
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog'
 import DeFiEmbedPreview from '@/components/defi/DeFiEmbedPreview'
 import LinkPreview from '@/components/LinkPreview'
+import ReportButton from '@/components/ReportButton'
 import { formatRelativeTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { renderText } from '@/lib/textParser'
@@ -387,6 +389,7 @@ const PostCard = memo(function PostCard({
                   username={post.original_post.user?.username}
                   avatarUrl={post.original_post.user?.avatar_url}
                   avatarTemplate={post.original_post.user?.avatar_template}
+                  nftAvatarUrl={post.original_post.user?.nft_avatar_url}
                   size="sm"
                 />
               </Link>
@@ -398,6 +401,12 @@ const PostCard = memo(function PostCard({
                   >
                     {post.original_post.user?.username || '未知用户'}
                   </Link>
+                  <WalletBadge
+                    isVerified={!!post.original_post.user?.wallet_address}
+                    reputationLevel={post.original_post.user?.reputation_level}
+                    username={post.original_post.user?.username}
+                    size="sm"
+                  />
                   <span className="text-gray-400 text-xs flex-shrink-0">·</span>
                   <span className="text-gray-500 text-xs flex-shrink-0" suppressHydrationWarning>
                     {formatRelativeTime(post.original_post.created_at)}
@@ -484,6 +493,7 @@ const PostCard = memo(function PostCard({
                   username={post.user?.username}
                   avatarUrl={post.user?.avatar_url}
                   avatarTemplate={post.user?.avatar_template}
+                  nftAvatarUrl={post.user?.nft_avatar_url}
                   size="md"
                   className="group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2 transition"
                 />
@@ -498,6 +508,12 @@ const PostCard = memo(function PostCard({
                   >
                     {post.user?.username || '未知用户'}
                   </Link>
+                  <WalletBadge
+                    isVerified={!!post.user?.wallet_address}
+                    reputationLevel={post.user?.reputation_level}
+                    username={post.user?.username}
+                    size="sm"
+                  />
                   <span className="text-gray-400 text-sm flex-shrink-0">·</span>
                   <span className="text-gray-500 text-sm flex-shrink-0" suppressHydrationWarning>
                     {formatRelativeTime(post.created_at)}
@@ -506,21 +522,35 @@ const PostCard = memo(function PostCard({
               </div>
             </div>
 
-            {/* 删除按钮（仅所有者可见） */}
-            {isOwner && onDelete && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  handleDeleteClick()
-                }}
-                disabled={isDeleting}
-                className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all p-2 rounded-full active:scale-95 flex-shrink-0"
-                title="删除动态"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+            <div className="flex items-center space-x-1">
+              {/* 举报按钮（非所有者可见） */}
+              {user && !isOwner && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <ReportButton
+                    reportType="post"
+                    targetId={post.id}
+                    iconOnly={true}
+                    className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all p-2 rounded-full active:scale-95"
+                  />
+                </div>
+              )}
+
+              {/* 删除按钮（仅所有者可见） */}
+              {isOwner && onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleDeleteClick()
+                  }}
+                  disabled={isDeleting}
+                  className="text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all p-2 rounded-full active:scale-95 flex-shrink-0"
+                  title="删除动态"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 内容 */}
